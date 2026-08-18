@@ -45,7 +45,25 @@ function saveConfig(config) {
 function getGoogleAuthClient() {
   // Option 1: Load directly from environment variables
   if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY.trim();
+    
+    // Remove enclosing quotes if they were accidentally added
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+      privateKey = privateKey.slice(1, -1);
+    } else if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
+      privateKey = privateKey.slice(1, -1);
+    }
+    
+    // Replace literal '\n' string with actual newlines
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    
+    console.log('--- GOOGLE AUTH DIAGNOSTICS ---');
+    console.log('Client Email:', process.env.GOOGLE_CLIENT_EMAIL);
+    console.log('Private Key length:', privateKey.length);
+    console.log('Starts with -----BEGIN PRIVATE KEY-----:', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
+    console.log('Ends with -----END PRIVATE KEY-----:', privateKey.includes('-----END PRIVATE KEY-----'));
+    console.log('--------------------------------');
+
     return new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
