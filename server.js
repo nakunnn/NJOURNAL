@@ -446,7 +446,15 @@ app.post('/api/trades', async (req, res) => {
     let pnl = 0;
     let roi = 0;
     
-    if (trade.status !== 'Open') {
+    if (trade.pnl !== undefined && trade.pnl !== null && trade.pnl !== '') {
+      pnl = parseFloat(trade.pnl);
+      const capital = entry * size;
+      if (capital > 0) {
+        roi = (pnl / capital) * 100;
+      } else {
+        roi = parseFloat(trade.roi) || 0;
+      }
+    } else if (trade.status !== 'Open') {
       if (action.toLowerCase() === 'long' || action.toLowerCase() === 'buy') {
         pnl = (exit - entry) * size - fees;
       } else {
@@ -525,7 +533,15 @@ app.put('/api/trades/:id', async (req, res) => {
     let pnl = 0;
     let roi = 0;
     
-    if (updatedTrade.status !== 'Open') {
+    if (updatedTrade.pnl !== undefined && updatedTrade.pnl !== null && updatedTrade.pnl !== '') {
+      pnl = parseFloat(updatedTrade.pnl);
+      const capital = entry * size;
+      if (capital > 0) {
+        roi = (pnl / capital) * 100;
+      } else {
+        roi = parseFloat(updatedTrade.roi) || 0;
+      }
+    } else if (updatedTrade.status !== 'Open') {
       if (action.toLowerCase() === 'long' || action.toLowerCase() === 'buy') {
         pnl = (exit - entry) * size - fees;
       } else {

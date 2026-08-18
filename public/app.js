@@ -339,6 +339,7 @@ function openEditTradeModal(id) {
   document.getElementById('trade-exit').value = trade.status === 'Open' ? '' : trade.exitPrice;
   document.getElementById('trade-size').value = trade.size;
   document.getElementById('trade-fees').value = trade.fees;
+  document.getElementById('trade-pnl-input').value = (trade.pnl !== undefined && trade.pnl !== null) ? trade.pnl : '';
   document.getElementById('trade-notes').value = trade.notes;
   
   document.getElementById('modal-title').innerText = 'Edit Trade';
@@ -361,6 +362,7 @@ async function saveTrade(e) {
   const rawDate = document.getElementById('trade-date').value;
   const dateFormatted = rawDate ? rawDate.replace('T', ' ') : '';
   
+  const pnlInputVal = document.getElementById('trade-pnl-input').value.trim();
   const tradeData = {
     date: dateFormatted,
     ticker: document.getElementById('trade-ticker').value.trim().toUpperCase(),
@@ -371,6 +373,7 @@ async function saveTrade(e) {
     exitPrice: parseLocalFloat(document.getElementById('trade-exit').value) || 0,
     size: parseLocalFloat(document.getElementById('trade-size').value) || 0,
     fees: parseLocalFloat(document.getElementById('trade-fees').value) || 0,
+    pnl: pnlInputVal !== '' ? parseLocalFloat(pnlInputVal) : null,
     notes: document.getElementById('trade-notes').value.trim()
   };
   
