@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NJournal - Premium Trading Journal</title>
+  <link rel="stylesheet" href="index.css">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">N</div>
+        <div class="brand-name">NJournal</div>
+      </div>
+      
+      <ul class="nav-links">
+        <li class="nav-item active" id="nav-dashboard" onclick="switchPage('dashboard')">
+          <a>
+            <svg viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+            Dashboard
+          </a>
+        </li>
+        <li class="nav-item" id="nav-trades" onclick="switchPage('trades')">
+          <a>
+            <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Trades Log
+          </a>
+        </li>
+        <li class="nav-item" id="nav-settings" onclick="switchPage('settings')">
+          <a>
+            <svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Settings
+          </a>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <div class="connection-status">
+          <span class="status-dot disconnected" id="status-dot"></span>
+          <span id="status-text">Checking connection...</span>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Panel -->
+    <main class="main-panel">
+      
+      <!-- Sticky Header -->
+      <header class="header">
+        <div class="header-title">
+          <h1 id="page-title">Dashboard</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="fetchData()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Refresh
+          </button>
+          <button class="btn btn-primary" id="btn-add-trade-header" onclick="openAddTradeModal()" style="display: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Add Trade
+          </button>
+        </div>
+      </header>
+
+
+
+      <!-- 2. DASHBOARD PAGE -->
+      <section id="dashboard-page" class="page-content">
+        
+        <!-- Premium Dashboard Hero Panel -->
+        <div class="dashboard-hero">
+          <div class="hero-main-stats">
+            <span class="hero-label">Account Balance</span>
+            <div class="hero-balance-wrapper">
+              <span class="hero-balance" id="hero-total-balance">$0.00</span>
+              <span class="hero-pnl-pill neutral" id="hero-pnl-pill">
+                <span id="hero-pnl-text">+$0.00</span>
+              </span>
+            </div>
+          </div>
+          <div class="hero-meta-grid">
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Account ROI</span>
+              <span class="hero-meta-value text-profit" id="hero-account-roi">+0.00%</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Win Rate</span>
+              <span class="hero-meta-value" id="hero-win-rate">0%</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Total Trades</span>
+              <span class="hero-meta-value" id="hero-total-trades">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Stats Cards Grid -->
+        <div class="stats-grid">
+          <div class="stat-card positive" id="card-pnl">
+            <div class="stat-header">
+              <span>Net Profit/Loss</span>
+              <span id="pnl-trend-icon"></span>
+            </div>
+            <div class="stat-value" id="stat-net-pnl">$0.00</div>
+            <div class="stat-footer">
+              <span id="stat-avg-roi">+0.00% Avg. ROI</span>
+            </div>
+          </div>
+          
+          <div class="stat-card interactive">
+            <div class="stat-header">
+              <span>Win / Loss Ratio</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
+            </div>
+            <div class="stat-value" id="stat-win-loss-ratio-val">0 / 0</div>
+            <div class="stat-footer">
+              <span id="stat-win-loss-ratio">0 Won / 0 Lost</span>
+            </div>
+          </div>
+          
+          <div class="stat-card neutral">
+            <div class="stat-header">
+              <span>Profit Factor</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 12-7-7-7 7M12 5v14"/></svg>
+            </div>
+            <div class="stat-value" id="stat-profit-factor">0.00</div>
+            <div class="stat-footer">
+              <span id="stat-avg-win-loss">Avg Win: $0 / Loss: $0</span>
+            </div>
+          </div>
+
+          <div class="stat-card neutral">
+            <div class="stat-header">
+              <span>Open Trades</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line></svg>
+            </div>
+            <div class="stat-value" id="stat-open-trades-val">0</div>
+            <div class="stat-footer">
+              <span id="stat-open-trades-ratio">0 Open of 0 Total</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Chart: Equity Curve -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <h3>Account Growth (Equity Curve)</h3>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="equityChart"></canvas>
+            </div>
+          </div>
+          
+          <!-- Win Loss Donut Chart -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <h3>Win / Loss Ratio</h3>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="winLossChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Charts -->
+        <div class="small-charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <h3>Performance by Strategy</h3>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="strategyChart"></canvas>
+            </div>
+          </div>
+          
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <h3>Performance by Day of Week</h3>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="dayChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. TRADES LOG PAGE -->
+      <section id="trades-page" class="page-content">
+        
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="filters">
+            <div class="search-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="search-ticker" class="form-control" style="padding-top:8px; padding-bottom:8px;" placeholder="Search Ticker..." oninput="applyFilters()">
+            </div>
+            
+            <select id="filter-status" class="filter-select" onchange="applyFilters()">
+              <option value="ALL">All Statuses</option>
+              <option value="Won">Won</option>
+              <option value="Lost">Lost</option>
+              <option value="Breakeven">Breakeven</option>
+              <option value="Open">Open</option>
+            </select>
+            
+            <select id="filter-action" class="filter-select" onchange="applyFilters()">
+              <option value="ALL">All Actions</option>
+              <option value="Long">Long</option>
+              <option value="Short">Short</option>
+            </select>
+            
+            <select id="filter-setup" class="filter-select" onchange="applyFilters()">
+              <option value="ALL">All Strategies</option>
+            </select>
+          </div>
+          
+          <div class="actions">
+            <button class="btn btn-primary" onclick="openAddTradeModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Add Trade
+            </button>
+          </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container">
+          <table class="trades-table" id="trades-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Ticker</th>
+                <th>Action</th>
+                <th>Entry Price</th>
+                <th>Exit Price</th>
+                <th>Size</th>
+                <th>Fees</th>
+                <th>Net P&L</th>
+                <th>ROI</th>
+                <th>Strategy</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="trades-tbody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+          <div id="table-empty-state" class="empty-state" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <h3>No Trade Records Found</h3>
+            <p>Add your first trade entry to start generating real-time analytics and charts.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. SETTINGS PAGE -->
+      <section id="settings-page" class="page-content">
+        <div class="setup-wizard" style="margin: 0; max-width: 100%;">
+          <h2>Google Sheets Configuration</h2>
+          <p style="color:var(--text-secondary); margin-bottom: 24px;">Manage your Google Sheets database integration and account settings.</p>
+          
+          <form id="settings-form" onsubmit="saveSettings(event)">
+            <div class="form-group">
+              <label for="settings-spreadsheet-id">Google Spreadsheet ID</label>
+              <input type="text" id="settings-spreadsheet-id" class="form-control" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ123456" required>
+            </div>
+            
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label for="settings-sheet-name">Sheet Tab Name</label>
+                <input type="text" id="settings-sheet-name" class="form-control" value="Trades" required>
+              </div>
+              <div class="form-group">
+                <label for="settings-starting-capital">Starting Capital ($)</label>
+                <input type="number" step="any" id="settings-starting-capital" class="form-control" value="10000" required>
+              </div>
+              <div class="form-group" style="display:flex; align-items:flex-end;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; height: 46px;">
+                  Update Settings
+                </button>
+              </div>
+            </div>
+          </form>
+          
+          <div style="border-top: 1px solid var(--surface-border); margin-top: 30px; padding-top: 24px;">
+            <h3>Service Onboarding & Utilities</h3>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom: 16px;">Use the utilities below to automatically format your spreadsheet columns to work with NJournal.</p>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:12px;">
+              <button class="btn btn-secondary" onclick="initializeSheetStructure()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                Initialize Columns & Format Sheet
+              </button>
+              
+              <button class="btn btn-danger" onclick="disconnectSheet()">
+                Disconnect Google Sheet
+              </button>
+            </div>
+          </div>
+          
+          <div style="background-color: hsl(222, 18%, 8%); border: 1px solid var(--surface-border); border-radius: var(--border-radius-md); padding: 20px; margin-top: 30px;">
+            <h4 style="margin-bottom: 8px;">Service Account Account Details</h4>
+            <p style="color:var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">Ensure the Google Service Account email below has <strong>Editor</strong> rights on your Google Sheet so the backend server can read and write transaction data.</p>
+            <div class="code-block" style="margin-top:0;">
+              <span id="settings-service-email">Loading email...</span>
+              <button class="btn-copy" onclick="copySettingsServiceEmail()" title="Copy Email">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+    </main>
+  </div>
+
+  <!-- ADD / EDIT TRADE MODAL -->
+  <div class="modal-overlay" id="trade-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Add New Trade</h3>
+        <button class="modal-close" onclick="closeTradeModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      
+      <form id="trade-form" onsubmit="saveTrade(event)">
+        <input type="hidden" id="trade-id-field">
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="trade-date">Date & Time</label>
+              <input type="datetime-local" id="trade-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="trade-ticker">Ticker / Pair</label>
+              <input type="text" id="trade-ticker" class="form-control" placeholder="e.g. BTCUSDT, AAPL, EURUSD" required>
+            </div>
+          </div>
+          
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="trade-action">Action</label>
+              <select id="trade-action" class="form-control">
+                <option value="Long">Long / Buy</option>
+                <option value="Short">Short / Sell</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="trade-status">Status</label>
+              <select id="trade-status" class="form-control" onchange="toggleExitField()">
+                <option value="Won">Won</option>
+                <option value="Lost">Lost</option>
+                <option value="Breakeven">Breakeven</option>
+                <option value="Open">Open</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="trade-setup">Strategy / Setup</label>
+              <input type="text" id="trade-setup" class="form-control" placeholder="e.g. Breakout, FVG, Support" required>
+            </div>
+          </div>
+          
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="trade-entry">Entry Price</label>
+              <input type="number" step="any" id="trade-entry" class="form-control" placeholder="0.00" required>
+            </div>
+            <div class="form-group" id="exit-price-group">
+              <label for="trade-exit">Exit Price</label>
+              <input type="number" step="any" id="trade-exit" class="form-control" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label for="trade-size">Size (Qty)</label>
+              <input type="number" step="any" id="trade-size" class="form-control" placeholder="1.0" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="trade-fees">Fees / Commission</label>
+            <input type="number" step="any" id="trade-fees" class="form-control" value="0.00">
+          </div>
+          
+          <div class="form-group">
+            <label for="trade-notes">Notes & Analysis</label>
+            <textarea id="trade-notes" class="form-control" rows="3" placeholder="Why did you take this trade? Describe your setup, psychology, or exit plan..."></textarea>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeTradeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Trade</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notification system -->
+  <div class="notification-container" id="notification-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
