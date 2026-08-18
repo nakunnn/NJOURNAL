@@ -126,6 +126,62 @@ function tradeToRow(trade) {
   ];
 }
 
+// Helper to get starting capital from Google Sheet Config tab
+async function getStartingCapitalFromSheet(sheets, spreadsheetId) {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Config!A1:B10',
+    });
+    const rows = response.data.values;
+    if (rows && rows.length > 0) {
+      const row = rows.find(r => r[0] === 'startingCapital');
+      if (row && row[1]) {
+        const parsed = parseFloat(row[1]);
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+  } catch (err) {
+    // If the Config sheet tab does not exist yet, we ignore the error
+    console.log('startingCapital Config sheet tab not found or readable, using default.');
+  }
+  return null;
+}
+
+// Helper to save starting capital to Google Sheet Config tab
+async function saveStartingCapitalToSheet(sheets, spreadsheetId, value) {
+  try {
+    // Verify or Create Config sheet tab
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const existingSheet = meta.data.sheets.find(s => s.properties.title === 'Config');
+    
+    if (!existingSheet) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: 'Config' } } }]
+        }
+      });
+    }
+    
+    // Write key-value pair
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Config!A1:B2',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [
+          ['Key', 'Value'],
+          ['startingCapital', value]
+        ]
+      }
+    });
+    console.log('Saved startingCapital to Google Sheet Config tab:', value);
+  } catch (err) {
+    console.error('Error saving startingCapital to Google Sheet:', err.message);
+  }
+}
+
 // API: Get Configuration details
 app.get('/api/config', async (req, res) => {
   try {
@@ -140,6 +196,12 @@ app.get('/api/config', async (req, res) => {
         });
         sheetTitle = response.data.properties.title;
         connected = true;
+        
+        // Fetch starting capital dynamically from Google Sheets Config tab!
+        const sheetCapital = await getStartingCapitalFromSheet(sheets, appConfig.spreadsheetId);
+        if (sheetCapital !== null) {
+          appConfig.startingCapital = sheetCapital;
+        }
       } catch (err) {
         console.error('Google Sheets connection check failed:', err.message);
       }
@@ -176,6 +238,9 @@ app.post('/api/config', async (req, res) => {
     const sheetMeta = await sheets.spreadsheets.get({
       spreadsheetId: spreadsheetId,
     });
+    
+    // Save startingCapital dynamically to Google Sheets Config tab!
+    await saveStartingCapitalToSheet(sheets, spreadsheetId, capital);
     
     saveConfig({
       spreadsheetId,
