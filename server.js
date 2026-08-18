@@ -43,8 +43,21 @@ function saveConfig(config) {
 
 // Google Sheets auth setup
 function getGoogleAuthClient() {
+  // Option 1: Load directly from environment variables
+  if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+    return new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: privateKey
+      },
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+  }
+
+  // Option 2: Load from credentials JSON file
   if (!fs.existsSync(CREDENTIALS_PATH)) {
-    throw new Error(`Credentials file not found at ${CREDENTIALS_PATH}`);
+    throw new Error(`Credentials file not found at ${CREDENTIALS_PATH}. Please configure GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY environment variables.`);
   }
   
   return new google.auth.GoogleAuth({
@@ -58,10 +71,10 @@ function getSheetsService() {
   return google.sheets({ version: 'v4', auth });
 }
 
-// Get Service Account email to show in Onboarding UI
-let serviceAccountEmail = '';
+// Get Service Account email
+let serviceAccountEmail = process.env.GOOGLE_CLIENT_EMAIL || '';
 try {
-  if (fs.existsSync(CREDENTIALS_PATH)) {
+  if (!serviceAccountEmail && fs.existsSync(CREDENTIALS_PATH)) {
     const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
     serviceAccountEmail = creds.client_email;
   }
