@@ -3,6 +3,14 @@ let trades = [];
 let sheetConfig = null;
 let charts = {};
 
+// Helper to parse floats that might contain commas
+function parseLocalFloat(val) {
+  if (val === undefined || val === null || val === '') return 0;
+  const sanitized = String(val).replace(/,/g, '.').replace(/\s/g, '');
+  const parsed = parseFloat(sanitized);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 // Current active page
 let currentPage = 'dashboard';
 
@@ -121,7 +129,7 @@ async function saveSettings(e) {
   e.preventDefault();
   const spreadsheetId = document.getElementById('settings-spreadsheet-id').value.trim();
   const sheetName = document.getElementById('settings-sheet-name').value.trim() || 'Trades';
-  const startingCapital = parseFloat(document.getElementById('settings-starting-capital').value) || 10000;
+  const startingCapital = parseLocalFloat(document.getElementById('settings-starting-capital').value) || 10000;
   
   showNotification('Saving settings...', 'info');
   
@@ -359,10 +367,10 @@ async function saveTrade(e) {
     action: document.getElementById('trade-action').value,
     status: document.getElementById('trade-status').value,
     setup: document.getElementById('trade-setup').value.trim(),
-    entryPrice: parseFloat(document.getElementById('trade-entry').value) || 0,
-    exitPrice: parseFloat(document.getElementById('trade-exit').value) || 0,
-    size: parseFloat(document.getElementById('trade-size').value) || 0,
-    fees: parseFloat(document.getElementById('trade-fees').value) || 0,
+    entryPrice: parseLocalFloat(document.getElementById('trade-entry').value) || 0,
+    exitPrice: parseLocalFloat(document.getElementById('trade-exit').value) || 0,
+    size: parseLocalFloat(document.getElementById('trade-size').value) || 0,
+    fees: parseLocalFloat(document.getElementById('trade-fees').value) || 0,
     notes: document.getElementById('trade-notes').value.trim()
   };
   
@@ -554,7 +562,7 @@ function updateStatsAndCharts() {
   const profitFactor = lossSum > 0 ? winSum / lossSum : winSum > 0 ? 99.9 : 0;
   
   // Get starting capital
-  const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseFloat(sheetConfig.startingCapital) : 10000;
+  const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseLocalFloat(sheetConfig.startingCapital) : 10000;
   const accountRoi = startingCapital > 0 ? (netPnl / startingCapital) * 100 : 0;
   
   const avgWin = totalWins > 0 ? winSum / totalWins : 0;
@@ -652,7 +660,7 @@ function renderEquityChart(closedTrades) {
   // Sort chronologically ascending
   const sorted = [...closedTrades].sort((a, b) => new Date(a.date) - new Date(b.date));
   
-  const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseFloat(sheetConfig.startingCapital) : 10000;
+  const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseLocalFloat(sheetConfig.startingCapital) : 10000;
   
   let cumulative = startingCapital;
   const data = [startingCapital];
