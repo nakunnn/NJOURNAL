@@ -479,7 +479,7 @@ app.post('/api/trades', async (req, res) => {
     await sheets.spreadsheets.values.append({
       spreadsheetId: appConfig.spreadsheetId,
       range: `${appConfig.sheetName}!A:M`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       requestBody: {
         values: [rowData]
       }
@@ -570,7 +570,7 @@ app.put('/api/trades/:id', async (req, res) => {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: updateRange,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       requestBody: {
         values: [rowData]
       }
