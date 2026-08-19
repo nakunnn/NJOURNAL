@@ -602,13 +602,15 @@ function updateStatsAndCharts() {
   
   // Get starting capital
   const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseLocalFloat(sheetConfig.startingCapital) : 10000;
-  const accountRoi = startingCapital > 0 ? (netPnl / startingCapital) * 100 : 0;
   
   const avgWin = totalWins > 0 ? winSum / totalWins : 0;
   const avgLoss = totalLosses > 0 ? lossSum / totalLosses : 0;
   
-  // Update DOM cards
-  const totalBalance = startingCapital + netPnl;
+  // Calculate total balance and total Account ROI based on all history
+  const allTimeClosedTrades = trades.filter(t => t.status !== 'Open');
+  const allTimeNetPnl = allTimeClosedTrades.reduce((sum, t) => sum + t.pnl, 0);
+  const totalBalance = startingCapital + allTimeNetPnl;
+  const accountRoi = startingCapital > 0 ? (allTimeNetPnl / startingCapital) * 100 : 0;
   
   // Update Hero panel
   document.getElementById('hero-total-balance').innerText = formatCurrency(totalBalance);
