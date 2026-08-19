@@ -83,6 +83,14 @@
       <!-- 2. DASHBOARD PAGE -->
       <section id="dashboard-page" class="page-content">
         
+        <!-- Dashboard Filter Bar -->
+        <div class="dashboard-filter-bar" style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: -10px;">
+          <label for="dashboard-date-filter" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Filter Tanggal / Harian:</label>
+          <select id="dashboard-date-filter" class="form-control" style="width: auto; min-width: 200px; height: 38px; padding: 0 16px; font-weight: 600; cursor: pointer; border-radius: var(--border-radius-md);" onchange="filterDashboardByDate(this.value)">
+            <option value="all">Semua Histori (Default)</option>
+          </select>
+        </div>
+        
         <!-- Premium Dashboard Hero Panel -->
         <div class="dashboard-hero">
           <div class="hero-main-stats">

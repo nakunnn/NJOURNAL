@@ -2,6 +2,7 @@
 let trades = [];
 let sheetConfig = null;
 let charts = {};
+let activeDateFilter = 'all';
 
 // Helper to parse floats that might contain commas
 function parseLocalFloat(val) {
@@ -232,6 +233,7 @@ async function fetchData() {
       showNotification('Trade data loaded successfully!', 'success');
       
       // Update UI components depending on current page
+      populateDateFilters();
       updateStatsAndCharts();
       populateTradesTable();
       populateSetupFilters();
@@ -557,10 +559,16 @@ function populateTradesTable() {
 function updateStatsAndCharts() {
   if (currentPage !== 'dashboard') return;
   
-  const closedTrades = trades.filter(t => t.status !== 'Open');
-  const openTradesCount = trades.filter(t => t.status === 'Open').length;
+  // Filter trades by date if a specific date is selected
+  let activeTrades = [...trades];
+  if (activeDateFilter !== 'all') {
+    activeTrades = trades.filter(t => t.date && t.date.split(' ')[0] === activeDateFilter);
+  }
   
-  const totalTrades = trades.length;
+  const closedTrades = activeTrades.filter(t => t.status !== 'Open');
+  const openTradesCount = activeTrades.filter(t => t.status === 'Open').length;
+  
+  const totalTrades = activeTrades.length;
   const closedTradesCount = closedTrades.length;
   
   // Calculate Stats
@@ -926,4 +934,55 @@ function renderDayChart(closedTrades) {
       }
     }
   });
+}
+
+// Populate unique dates into Dashboard Filter select dropdown
+function populateDateFilters() {
+  const select = document.getElementById('dashboard-date-filter');
+  if (!select) return;
+  
+  select.innerHTML = '<option value="all">Semua Histori (Default)</option>';
+  
+  // Get unique dates (YYYY-MM-DD)
+  const uniqueDates = [...new Set(trades
+    .map(t => t.date ? t.date.split(' ')[0] : null)
+    .filter(d => d !== null && d !== '')
+  )];
+  
+  // Sort descending
+  uniqueDates.sort((a, b) => new Date(b) - new Date(a));
+  
+  // Add option elements
+  uniqueDates.forEach(date => {
+    const opt = document.createElement('option');
+    opt.value = date;
+    opt.innerText = formatDateIndo(date);
+    select.appendChild(opt);
+  });
+  
+  select.value = activeDateFilter;
+}
+
+// Format date into a human readable Indonesian format e.g. "19 Aug 2026"
+function formatDateIndo(dateStr) {
+  if (!dateStr) return '';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${day} ${months[monthIdx]} ${year}`;
+      }
+    }
+  } catch (e) {}
+  return dateStr; // fallback to original string
+}
+
+// Triggered when date filter changes
+function filterDashboardByDate(val) {
+  activeDateFilter = val;
+  updateStatsAndCharts();
 }
