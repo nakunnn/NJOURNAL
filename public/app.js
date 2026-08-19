@@ -11,6 +11,28 @@ function parseLocalFloat(val) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+// Theme Selector logic
+function changeTheme(themeName) {
+  const link = document.getElementById('theme-stylesheet');
+  if (!link) return;
+  if (themeName === 'default') {
+    link.href = 'index.css';
+  } else {
+    link.href = `themes/${themeName}.css`;
+  }
+  localStorage.setItem('njournal-theme', themeName);
+  
+  // Set select input value if it exists
+  const select = document.getElementById('theme-select');
+  if (select) {
+    select.value = themeName;
+  }
+}
+
+// Load saved theme on load
+const savedTheme = localStorage.getItem('njournal-theme') || 'default';
+changeTheme(savedTheme);
+
 // Current active page
 let currentPage = 'dashboard';
 
@@ -36,6 +58,12 @@ const tradeIdField = document.getElementById('trade-id-field');
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+  // Sync theme selector dropdown value
+  const select = document.getElementById('theme-select');
+  if (select) {
+    select.value = localStorage.getItem('njournal-theme') || 'default';
+  }
+
   // Set default datetime to now
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;

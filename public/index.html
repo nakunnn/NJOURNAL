@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>N-Journal</title>
-  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" id="theme-stylesheet" href="index.css">
   <!-- Chart.js for data visualization -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -40,6 +40,17 @@
       </ul>
       
       <div class="sidebar-footer">
+        <div class="theme-selector-container" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px;">
+          <label for="theme-select" style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Theme UI/UX</label>
+          <select id="theme-select" class="form-control" style="height: 34px; padding: 0 10px; font-size: 0.8rem; cursor: pointer;" onchange="changeTheme(this.value)">
+            <option value="default">Liquid Glass (Default)</option>
+            <option value="minimalist">Minimalist (Swiss)</option>
+            <option value="neumorphic">Neumorphic (Soft 3D)</option>
+            <option value="brutalist">Brutalist (Bold)</option>
+            <option value="cyberpunk">Cyberpunk (Neon Glow)</option>
+            <option value="aurora">Aurora (Flowing Mesh)</option>
+          </select>
+        </div>
         <div class="connection-status">
           <span class="status-dot disconnected" id="status-dot"></span>
           <span id="status-text">Checking connection...</span>
