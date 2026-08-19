@@ -1,31 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg-color: #e0e8f0; /* Soft Neumorphic Blue-Grey */
-  --surface-color: #e0e8f0;
-  --surface-hover: #d5deea;
+  --bg-color: #1a1d24; /* Dark Neumorphic Charcoal */
+  --surface-color: #1a1d24;
+  --surface-hover: #15171d;
   --surface-border: transparent;
-  --surface-border-focus: rgba(20, 184, 166, 0.4);
+  --surface-border-focus: rgba(168, 85, 247, 0.4);
   
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-glow: rgba(59, 130, 246, 0.25);
+  --primary: #a855f7;
+  --primary-hover: #9333ea;
+  --primary-glow: rgba(168, 85, 247, 0.25);
   
   --success: #10b981;
-  --success-bg: #e0e8f0;
+  --success-bg: #1a1d24;
   --success-border: rgba(16, 185, 129, 0.4);
   
   --danger: #ef4444;
-  --danger-bg: #e0e8f0;
+  --danger-bg: #1a1d24;
   --danger-border: rgba(239, 68, 68, 0.4);
   
   --warning: #f59e0b;
-  --warning-bg: #e0e8f0;
+  --warning-bg: #1a1d24;
   --warning-border: rgba(245, 158, 11, 0.4);
 
-  --text-primary: #2d3748;
-  --text-secondary: #4a5568;
-  --text-muted: #718096;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   
   --sidebar-width: 250px;
   --transition-fast: 0.2s ease-out;
@@ -37,12 +37,12 @@
   
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   
-  /* Neumorphic Shadows */
-  --shadow-flat: 6px 6px 12px #beccd8, -6px -6px 12px #ffffff;
-  --shadow-inset: inset 3px 3px 6px #beccd8, inset -3px -3px 6px #ffffff;
-  --shadow-hover: 9px 9px 16px #beccd8, -9px -9px 16px #ffffff;
-  --shadow-btn: 4px 4px 8px #beccd8, -4px -4px 8px #ffffff;
-  --shadow-btn-active: inset 2px 2px 4px #beccd8, inset -2px -2px 4px #ffffff;
+  /* Neumorphic Dark Shadows */
+  --shadow-flat: 6px 6px 12px #101216, -6px -6px 12px #242832;
+  --shadow-inset: inset 3px 3px 6px #101216, inset -3px -3px 6px #242832;
+  --shadow-hover: 9px 9px 16px #101216, -9px -9px 16px #242832;
+  --shadow-btn: 4px 4px 8px #101216, -4px -4px 8px #242832;
+  --shadow-btn-active: inset 2px 2px 4px #101216, inset -2px -2px 4px #242832;
 }
 
 /* Global Reset */
@@ -175,12 +175,10 @@ body {
   height: 8px;
   border-radius: 50%;
   background-color: var(--danger);
-  box-shadow: 2px 2px 4px rgba(0,0,0,0.1), -2px -2px 4px #ffffff;
 }
 
 .status-dot.connected {
   background-color: var(--success);
-  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2);
 }
 
 /* Main Panel */
@@ -552,14 +550,13 @@ body {
   border-radius: var(--border-radius-sm);
   font-size: 0.7rem;
   font-weight: 700;
-  box-shadow: var(--shadow-flat);
 }
 
-.badge-long { background-color: #dbeafe; color: #1e40af; }
-.badge-short { background-color: #f3e8ff; color: #6b21a8; }
-.badge-won { background-color: #d1fae5; color: var(--success); }
-.badge-lost { background-color: #fee2e2; color: var(--danger); }
-.badge-breakeven { background-color: #fef3c7; color: var(--warning); }
+.badge-long { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.badge-short { background-color: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.badge-won { background-color: rgba(16, 185, 129, 0.15); color: var(--success); }
+.badge-lost { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); }
+.badge-breakeven { background-color: rgba(245, 158, 11, 0.15); color: var(--warning); }
 .badge-open { background-color: var(--bg-color); color: var(--text-secondary); box-shadow: var(--shadow-inset); }
 
 .text-profit { color: var(--success); font-weight: 700; }
@@ -588,6 +585,7 @@ body {
 
 .btn-icon:hover {
   box-shadow: var(--shadow-btn-active);
+  color: var(--text-primary);
 }
 
 .btn-icon svg {
@@ -605,7 +603,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(224, 232, 240, 0.7);
+  background-color: rgba(16, 18, 23, 0.85);
   backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
@@ -626,7 +624,7 @@ body {
   border-radius: var(--border-radius-lg);
   width: 100%;
   max-width: 620px;
-  box-shadow: 12px 12px 24px #beccd8, -12px -12px 24px #ffffff;
+  box-shadow: 12px 12px 24px #101216, -12px -12px 24px #242832;
   padding: 10px;
 }
 

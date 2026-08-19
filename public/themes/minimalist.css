@@ -1,31 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
 
 :root {
-  --bg-color: #faf9f6; /* Warm off-white */
-  --surface-color: #ffffff;
-  --surface-hover: #f5f4f0;
-  --surface-border: #111111;
-  --surface-border-focus: #111111;
+  --bg-color: #0c0c0e; /* Dark off-black */
+  --surface-color: #121214;
+  --surface-hover: #1b1b1f;
+  --surface-border: #2c2c30;
+  --surface-border-focus: #ffffff;
   
-  --primary: #111111;
-  --primary-hover: #333333;
+  --primary: #ffffff;
+  --primary-hover: #e5e5e5;
   --primary-glow: transparent;
   
-  --success: #1b4d3e; /* Forest Green */
-  --success-bg: #e2ece9;
-  --success-border: #1b4d3e;
+  --success: #34d399; /* Emerald Green */
+  --success-bg: rgba(52, 211, 153, 0.08);
+  --success-border: #34d399;
   
-  --danger: #7c1c1c; /* Crimson */
-  --danger-bg: #f5e6e6;
-  --danger-border: #7c1c1c;
+  --danger: #f87171; /* Coral Red */
+  --danger-bg: rgba(248, 113, 113, 0.08);
+  --danger-border: #f87171;
   
-  --warning: #b25e00;
-  --warning-bg: #f9efe2;
-  --warning-border: #b25e00;
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.08);
+  --warning-border: #fbbf24;
 
-  --text-primary: #111111;
-  --text-secondary: #555555;
-  --text-muted: #888888;
+  --text-primary: #f3f4f6;
+  --text-secondary: #a1a1aa;
+  --text-muted: #52525b;
   
   --sidebar-width: 250px;
   --transition-fast: 0.15s ease;
@@ -67,7 +67,7 @@ body {
   position: relative;
 }
 
-/* Sidebar styling - Minimal stark white */
+/* Sidebar styling - Minimal stark black */
 .sidebar {
   width: var(--sidebar-width);
   background-color: var(--surface-color);
@@ -95,7 +95,7 @@ body {
   justify-content: center;
   font-weight: 800;
   font-size: 16px;
-  color: #ffffff;
+  color: #000000;
 }
 
 .brand-name {
@@ -137,7 +137,7 @@ body {
 }
 
 .nav-item.active a {
-  color: #ffffff;
+  color: #000000;
   background-color: var(--primary);
   border-color: var(--primary);
 }
@@ -227,33 +227,35 @@ body {
 
 .btn-primary {
   background-color: var(--primary);
-  color: #ffffff;
+  color: #000000;
 }
 
 .btn-primary:hover {
-  background-color: #ffffff;
+  background-color: transparent;
   color: var(--primary);
+  border-color: var(--primary);
 }
 
 .btn-secondary {
-  background-color: #ffffff;
+  background-color: transparent;
   color: var(--text-primary);
+  border-color: var(--surface-border);
 }
 
 .btn-secondary:hover {
   background-color: var(--primary);
-  color: #ffffff;
+  color: #000000;
 }
 
 .btn-danger {
-  background-color: #ffffff;
+  background-color: transparent;
   color: var(--danger);
   border-color: var(--danger-border);
 }
 
 .btn-danger:hover {
   background-color: var(--danger-border);
-  color: #ffffff;
+  color: #000000;
 }
 
 /* Page Contents */
@@ -297,6 +299,7 @@ body {
 
 .form-control:focus {
   background-color: var(--surface-hover);
+  border-color: var(--primary);
 }
 
 /* ================== MINIMALIST HERO PANEL ================== */
@@ -547,7 +550,7 @@ body {
 
 .trades-table td {
   padding: 14px 20px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--surface-border);
   color: var(--text-secondary);
 }
 
@@ -571,12 +574,12 @@ body {
   border: 1px solid var(--surface-border);
 }
 
-.badge-long { background-color: #e5f1fa; color: #1e3a8a; border-color: #1e3a8a; }
-.badge-short { background-color: #f3e8ff; color: #581c87; border-color: #581c87; }
+.badge-long { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: #60a5fa; }
+.badge-short { background-color: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: #c084fc; }
 .badge-won { background-color: var(--success-bg); color: var(--success); border-color: var(--success-border); }
 .badge-lost { background-color: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 .badge-breakeven { background-color: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
-.badge-open { background-color: #f5f5f5; color: var(--text-secondary); }
+.badge-open { background-color: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
 
 .text-profit { color: var(--success); }
 .text-loss { color: var(--danger); }
@@ -628,7 +631,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
