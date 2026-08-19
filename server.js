@@ -119,19 +119,27 @@ const HEADERS = [
 
 // Helper to convert row array to trade object
 function rowToTrade(row, index) {
-  // Row contains strings from the sheet. Index is the 1-based row number.
+  // Robust float parser handling numbers, strings, and commas
+  const parseVal = (val) => {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    const clean = String(val).replace(/,/g, '.').replace(/\s/g, '');
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   return {
     rowNumber: index + 1, // Store the row number (1-indexed) in spreadsheet
     id: row[0] || '',
     date: row[1] || '',
     ticker: row[2] || '',
     action: row[3] || '',
-    entryPrice: parseFloat(row[4]) || 0,
-    exitPrice: parseFloat(row[5]) || 0,
-    size: parseFloat(row[6]) || 0,
-    fees: parseFloat(row[7]) || 0,
-    pnl: parseFloat(row[8]) || 0,
-    roi: parseFloat(row[9]) || 0,
+    entryPrice: parseVal(row[4]),
+    exitPrice: parseVal(row[5]),
+    size: parseVal(row[6]),
+    fees: parseVal(row[7]),
+    pnl: parseVal(row[8]),
+    roi: parseVal(row[9]),
     setup: row[10] || 'General',
     status: row[11] || 'Open',
     notes: row[12] || ''
@@ -163,6 +171,7 @@ async function getStartingCapitalFromSheet(sheets, spreadsheetId) {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: 'Config!A1:B10',
+      valueRenderOption: 'UNFORMATTED_VALUE'
     });
     const rows = response.data.values;
     if (rows && rows.length > 0) {
@@ -403,6 +412,7 @@ app.get('/api/trades', async (req, res) => {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: appConfig.spreadsheetId,
       range,
+      valueRenderOption: 'UNFORMATTED_VALUE'
     });
     
     const rows = response.data.values;
@@ -510,6 +520,7 @@ app.put('/api/trades/:id', async (req, res) => {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetName}!A:M`,
+      valueRenderOption: 'UNFORMATTED_VALUE'
     });
     
     const rows = response.data.values;
@@ -607,6 +618,7 @@ app.delete('/api/trades/:id', async (req, res) => {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetName}!A:M`,
+      valueRenderOption: 'UNFORMATTED_VALUE'
     });
     
     const rows = response.data.values;
