@@ -94,7 +94,13 @@
         <!-- Premium Dashboard Hero Panel -->
         <div class="dashboard-hero">
           <div class="hero-main-stats">
-            <span class="hero-label">Account Balance</span>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+              <span class="hero-label" style="margin-bottom: 0; line-height: 1;">Account Balance</span>
+              <div class="balance-adjust-buttons" style="display: flex; gap: 6px;">
+                <button onclick="adjustStartingCapital('add')" style="padding: 2px 8px; font-size: 0.65rem; font-weight: 800; background: rgba(20, 184, 166, 0.2); color: #14b8a6; border: 1px solid #14b8a6; cursor: pointer; border-radius: 4px; text-transform: uppercase; line-height: 1.2;" title="Tambah Saldo (Deposit)">+ Add</button>
+                <button onclick="adjustStartingCapital('min')" style="padding: 2px 8px; font-size: 0.65rem; font-weight: 800; background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid #f43f5e; cursor: pointer; border-radius: 4px; text-transform: uppercase; line-height: 1.2;" title="Kurangi Saldo (Withdraw)">- Min</button>
+              </div>
+            </div>
             <div class="hero-balance-wrapper">
               <span class="hero-balance" id="hero-total-balance">$0.00</span>
               <span class="hero-pnl-pill neutral" id="hero-pnl-pill">

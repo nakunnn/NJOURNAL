@@ -988,3 +988,62 @@ function filterDashboardByDate(val) {
   activeDateFilter = val;
   updateStatsAndCharts();
 }
+
+// Adjust starting capital (Add/Deposit or Min/Withdraw)
+async function adjustStartingCapital(action) {
+  if (!sheetConfig || !sheetConfig.spreadsheetId) {
+    showNotification('Config not loaded yet', 'error');
+    return;
+  }
+  
+  const actionText = action === 'add' ? 'TAMBAH (Deposit)' : 'KURANGI (Withdraw)';
+  const promptMessage = `Masukkan nominal yang ingin Anda ${actionText} ke saldo awal (Starting Capital):`;
+  
+  const input = prompt(promptMessage);
+  if (input === null) return; // user cancelled
+  
+  const amount = parseLocalFloat(input);
+  if (isNaN(amount) || amount <= 0) {
+    alert('Nominal harus berupa angka positif!');
+    return;
+  }
+  
+  const currentCapital = parseLocalFloat(sheetConfig.startingCapital) || 0;
+  let newCapital = currentCapital;
+  
+  if (action === 'add') {
+    newCapital += amount;
+  } else {
+    if (currentCapital < amount) {
+      if (!confirm(`Peringatan: Nominal pengurangan ($${amount}) lebih besar dari Saldo Awal saat ini ($${currentCapital}). Lanjutkan?`)) {
+        return;
+      }
+    }
+    newCapital -= amount;
+  }
+  
+  showNotification('Memproses penyesuaian saldo...', 'info');
+  
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        spreadsheetId: sheetConfig.spreadsheetId, 
+        sheetName: sheetConfig.sheetName || 'Trades', 
+        startingCapital: newCapital 
+      })
+    });
+    
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showNotification(`Saldo awal berhasil di-${action === 'add' ? 'tambah' : 'kurangi'}!`, 'success');
+      // Reload config & data to refresh UI
+      await checkConfig();
+    } else {
+      showNotification(data.error || 'Gagal menyesuaikan saldo', 'error');
+    }
+  } catch (err) {
+    showNotification('Gagal terhubung ke server', 'error');
+  }
+}
