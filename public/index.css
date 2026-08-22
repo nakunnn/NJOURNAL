@@ -490,9 +490,9 @@ body::after {
 
 /* ================== PREMIUM DASHBOARD HERO PANEL ================== */
 .dashboard-hero {
-  background: linear-gradient(135deg, rgba(13, 20, 38, 0.4) 0%, rgba(20, 27, 47, 0.2) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(32px) saturate(220%);
+  -webkit-backdrop-filter: blur(32px) saturate(220%);
   border: 1px solid var(--surface-border);
   border-radius: var(--border-radius-lg);
   padding: 36px 40px;
@@ -607,8 +607,8 @@ body::after {
 
 .stat-card {
   background-color: var(--surface-color);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(220%);
+  -webkit-backdrop-filter: blur(28px) saturate(220%);
   border: 1px solid var(--surface-border);
   border-radius: var(--border-radius-lg);
   padding: 24px;
@@ -666,8 +666,8 @@ body::after {
 
 .chart-card {
   background-color: var(--surface-color);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(220%);
+  -webkit-backdrop-filter: blur(28px) saturate(220%);
   border: 1px solid var(--surface-border);
   border-radius: var(--border-radius-lg);
   padding: 28px;
@@ -715,8 +715,8 @@ body::after {
   justify-content: space-between;
   gap: 16px;
   background-color: var(--surface-color);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(220%);
+  -webkit-backdrop-filter: blur(28px) saturate(220%);
   border: 1px solid var(--surface-border);
   border-radius: var(--border-radius-md);
   padding: 14px 20px;
@@ -774,8 +774,8 @@ body::after {
 
 .table-container {
   background-color: var(--surface-color);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(220%);
+  -webkit-backdrop-filter: blur(28px) saturate(220%);
   border: 1px solid var(--surface-border);
   border-radius: var(--border-radius-lg);
   overflow: hidden;
