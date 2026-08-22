@@ -2,7 +2,8 @@
 let trades = [];
 let sheetConfig = null;
 let charts = {};
-let activeDateFilter = 'all';
+let activeDashboardFilter = 'all';
+let equityTimeframe = 'all';
 
 // Helper to parse floats that might contain commas
 function parseLocalFloat(val) {
@@ -233,7 +234,7 @@ async function fetchData() {
       showNotification('Trade data loaded successfully!', 'success');
       
       // Update UI components depending on current page
-      populateDateFilters();
+      populateRecentTradesTable();
       updateStatsAndCharts();
       populateTradesTable();
       populateSetupFilters();
@@ -346,6 +347,174 @@ function openAddTradeModal() {
   
   toggleExitField();
   tradeModal.classList.add('active');
+}
+
+// Filter dashboard by quick timeframe range (Today, Week, Month, All)
+function filterDashboardRange(range) {
+  activeDashboardFilter = range;
+  
+  // Update button styling active states
+  ['today', 'week', 'month', 'all'].forEach(r => {
+    const btn = document.getElementById(`db-f-${r}`);
+    if (btn) {
+      if (r === range) {
+        btn.style.background = 'var(--primary)';
+        btn.style.color = '#000';
+      } else {
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-secondary)';
+      }
+    }
+  });
+  
+  updateStatsAndCharts();
+}
+
+// Filter equity chart by timeframe
+function filterEquityByTimeframe(timeframe) {
+  equityTimeframe = timeframe;
+  
+  // Update button active states
+  ['1D', '1W', '1M', 'all'].forEach(tf => {
+    const btn = document.getElementById(`tf-${tf}`);
+    if (btn) {
+      if (tf === timeframe) {
+        btn.style.background = 'var(--primary)';
+        btn.style.color = '#000';
+      } else {
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-secondary)';
+      }
+    }
+  });
+  
+  updateStatsAndCharts();
+}
+
+// Populate Recent Trades Mini-Table
+function populateRecentTradesTable() {
+  const tbody = document.getElementById('recent-trades-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  const sorted = [...trades]
+    .filter(t => t.ticker)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
+    
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No trades recorded</td></tr>';
+    return;
+  }
+  
+  sorted.forEach(trade => {
+    const tr = document.createElement('tr');
+    
+    let statusClass = 'badge-open';
+    if (trade.status === 'Won') statusClass = 'badge-won';
+    else if (trade.status === 'Lost') statusClass = 'badge-lost';
+    else if (trade.status === 'Breakeven') statusClass = 'badge-breakeven';
+    
+    const statusBadge = `<span class="badge ${statusClass}">${trade.status}</span>`;
+    const actionBadge = `<span class="badge ${trade.action === 'Long' ? 'badge-long' : 'badge-short'}">${trade.action}</span>`;
+    
+    let pnlClass = 'text-neutral';
+    let formattedPnl = '-';
+    if (trade.status !== 'Open') {
+      pnlClass = trade.pnl > 0 ? 'text-profit' : (trade.pnl < 0 ? 'text-loss' : 'text-neutral');
+      formattedPnl = formatCurrency(trade.pnl);
+    }
+    
+    tr.innerHTML = `
+      <td style="font-family: var(--font-mono); font-size: 0.75rem; padding: 12px 16px;">${trade.date ? trade.date.split(' ')[0] : '-'}</td>
+      <td style="padding: 12px 16px;"><strong>${trade.ticker}</strong></td>
+      <td style="padding: 12px 16px;">${actionBadge}</td>
+      <td style="font-family: var(--font-mono); padding: 12px 16px;">${trade.size}</td>
+      <td class="${pnlClass}" style="font-family: var(--font-mono); font-weight: 700; padding: 12px 16px;">${formattedPnl}</td>
+      <td style="padding: 12px 16px;">${statusBadge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Render Daily Net PnL Bar Chart (Last 7 Days)
+function renderDailyNetPnlChart(closedTrades) {
+  const ctx = document.getElementById('dailyNetPnlChart').getContext('2d');
+  
+  if (charts.dailyNetPnl) {
+    charts.dailyNetPnl.destroy();
+  }
+  
+  // Calculate P&L for each of the last 7 days
+  const last7Days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    last7Days.push({
+      dateStr,
+      label: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+      pnl: 0
+    });
+  }
+  
+  closedTrades.forEach(trade => {
+    if (!trade.date) return;
+    const tDateStr = trade.date.split(' ')[0];
+    const dayObj = last7Days.find(d => d.dateStr === tDateStr);
+    if (dayObj) {
+      dayObj.pnl += trade.pnl;
+    }
+  });
+  
+  const labels = last7Days.map(d => d.label);
+  const data = last7Days.map(d => Math.round(d.pnl * 100) / 100);
+  
+  const backgroundColors = data.map(v => v > 0 ? 'rgba(16, 185, 129, 0.7)' : (v < 0 ? 'rgba(244, 63, 94, 0.7)' : 'rgba(255,255,255,0.05)'));
+  const borderColors = data.map(v => v > 0 ? '#10b981' : (v < 0 ? '#f43f5e' : 'rgba(255,255,255,0.1)'));
+  
+  const styles = getChartStyles();
+  
+  charts.dailyNetPnl = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 1.2,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: styles.tooltipBg,
+          borderColor: styles.tooltipBorder,
+          borderWidth: 1,
+          callbacks: {
+            label: function(context) {
+              return `Net P&L: ${formatCurrency(context.parsed.y)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: styles.textColor, font: { family: 'Inter', size: 9 } }
+        },
+        y: {
+          grid: { color: styles.gridColor },
+          ticks: { color: styles.textColor, font: { family: 'Inter', size: 9 } }
+        }
+      }
+    }
+  });
 }
 
 function openEditTradeModal(id) {
@@ -559,10 +728,20 @@ function populateTradesTable() {
 function updateStatsAndCharts() {
   if (currentPage !== 'dashboard') return;
   
-  // Filter trades by date if a specific date is selected
+  // Filter trades by range selector
   let activeTrades = [...trades];
-  if (activeDateFilter !== 'all') {
-    activeTrades = trades.filter(t => t.date && t.date.split(' ')[0] === activeDateFilter);
+  const now = new Date();
+  if (activeDashboardFilter === 'today') {
+    const todayStr = now.toISOString().split('T')[0];
+    activeTrades = trades.filter(t => t.date && t.date.startsWith(todayStr));
+  } else if (activeDashboardFilter === 'week') {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(now.getDate() - 7);
+    activeTrades = trades.filter(t => t.date && new Date(t.date) >= oneWeekAgo);
+  } else if (activeDashboardFilter === 'month') {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(now.getMonth() - 1);
+    activeTrades = trades.filter(t => t.date && new Date(t.date) >= oneMonthAgo);
   }
   
   const closedTrades = activeTrades.filter(t => t.status !== 'Open');
@@ -662,8 +841,8 @@ function updateStatsAndCharts() {
   }
   
   // Update Win/Loss card
-  document.getElementById('stat-win-loss-ratio-val').innerText = `${Math.round(winRate)}%`;
-  document.getElementById('stat-win-loss-ratio').innerText = `${totalWins} Won / ${totalLosses} Lost`;
+  document.getElementById('stat-win-loss-ratio-val').innerText = `${totalWins}W - ${totalLosses}L`;
+  document.getElementById('stat-win-loss-ratio').innerText = `${totalBreakeven} Breakevens`;
   
   // Update Profit Factor card
   document.getElementById('stat-profit-factor').innerText = profitFactor.toFixed(2);
@@ -678,6 +857,8 @@ function updateStatsAndCharts() {
   renderWinLossChart(totalWins, totalLosses, totalBreakeven);
   renderStrategyChart(closedTrades);
   renderDayChart(closedTrades);
+  renderDailyNetPnlChart(closedTrades);
+  populateRecentTradesTable();
 }
 
 // ---------------- CHART RENDERING LOGIC ----------------
@@ -698,8 +879,24 @@ function renderEquityChart(closedTrades) {
     charts.equity.destroy();
   }
   
+  // Filter trades based on equityTimeframe
+  let chartTrades = [...closedTrades];
+  const now = new Date();
+  if (equityTimeframe === '1D') {
+    const todayStr = now.toISOString().split('T')[0];
+    chartTrades = closedTrades.filter(t => t.date && t.date.startsWith(todayStr));
+  } else if (equityTimeframe === '1W') {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(now.getDate() - 7);
+    chartTrades = closedTrades.filter(t => t.date && new Date(t.date) >= oneWeekAgo);
+  } else if (equityTimeframe === '1M') {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(now.getMonth() - 1);
+    chartTrades = closedTrades.filter(t => t.date && new Date(t.date) >= oneMonthAgo);
+  }
+  
   // Sort chronologically ascending
-  const sorted = [...closedTrades].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sorted = [...chartTrades].sort((a, b) => new Date(a.date) - new Date(b.date));
   
   const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseLocalFloat(sheetConfig.startingCapital) : 10000;
   
@@ -710,14 +907,14 @@ function renderEquityChart(closedTrades) {
   sorted.forEach((trade, i) => {
     cumulative += trade.pnl;
     data.push(Math.round(cumulative * 100) / 100);
-    labels.push(trade.ticker + ` (#${i+1})`);
+    labels.push(`#${i+1}`);
   });
   
   const styles = getChartStyles();
   
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, 'rgba(26, 188, 156, 0.3)');
-  gradient.addColorStop(1, 'rgba(26, 188, 156, 0.0)');
+  gradient.addColorStop(0, 'rgba(20, 184, 166, 0.25)');
+  gradient.addColorStop(1, 'rgba(20, 184, 166, 0.0)');
   
   charts.equity = new Chart(ctx, {
     type: 'line',
@@ -726,13 +923,13 @@ function renderEquityChart(closedTrades) {
       datasets: [{
         label: 'Balance ($)',
         data,
-        borderColor: '#1abc9c',
-        borderWidth: 3,
+        borderColor: '#14b8a6',
+        borderWidth: 2.5,
         fill: true,
         backgroundColor: gradient,
         tension: 0.3,
-        pointBackgroundColor: '#1abc9c',
-        pointRadius: data.length > 20 ? 0 : 4,
+        pointBackgroundColor: '#14b8a6',
+        pointRadius: data.length > 30 ? 0 : 3.5,
         pointHoverRadius: 6
       }]
     },
@@ -748,21 +945,35 @@ function renderEquityChart(closedTrades) {
           titleColor: '#fff',
           bodyColor: '#e2e8f0',
           displayColors: false,
+          padding: 10,
           callbacks: {
+            title: function(context) {
+              const idx = context[0].dataIndex;
+              if (idx === 0) return 'Initial Balance';
+              const trade = sorted[idx - 1];
+              return `${trade.ticker} (${trade.action})`;
+            },
             label: function(context) {
-              return `Balance: ${formatCurrency(context.parsed.y)}`;
+              const idx = context.dataIndex;
+              const lines = [`Balance: ${formatCurrency(context.parsed.y)}`];
+              if (idx > 0) {
+                const trade = sorted[idx - 1];
+                lines.push(`PnL: ${trade.pnl >= 0 ? '+' : ''}${formatCurrency(trade.pnl)} (${formatPercent(trade.roi)})`);
+                lines.push(`Date: ${trade.date ? trade.date.split(' ')[0] : '-'}`);
+              }
+              return lines;
             }
           }
         }
       },
       scales: {
         x: {
-          grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor }
+          grid: { display: false },
+          ticks: { color: styles.textColor, font: { family: 'Inter', size: 10 } }
         },
         y: {
           grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor }
+          ticks: { color: styles.textColor, font: { family: 'Inter', size: 10 } }
         }
       }
     }
@@ -778,25 +989,59 @@ function renderWinLossChart(wins, losses, breakevens) {
   
   const styles = getChartStyles();
   
+  const centerTextPlugin = {
+    id: 'centerText',
+    afterDraw: function(chart) {
+      const width = chart.width;
+      const height = chart.height;
+      const chartCtx = chart.ctx;
+      
+      chartCtx.restore();
+      
+      const total = wins + losses + breakevens;
+      const rate = total > 0 ? Math.round((wins / total) * 100) : 0;
+      
+      // Draw subtext
+      chartCtx.font = '600 0.65rem Inter, sans-serif';
+      chartCtx.textBaseline = 'middle';
+      chartCtx.fillStyle = '#94a3b8';
+      const subtext = 'WIN RATE';
+      const subtextX = Math.round((width - chartCtx.measureText(subtext).width) / 2);
+      const subtextY = (height / 2) - 10;
+      chartCtx.fillText(subtext, subtextX, subtextY);
+      
+      // Draw percentage number
+      chartCtx.font = '800 1.5rem Inter, sans-serif';
+      chartCtx.fillStyle = '#ffffff';
+      const text = `${rate}%`;
+      const textX = Math.round((width - chartCtx.measureText(text).width) / 2);
+      const textY = (height / 2) + 12;
+      chartCtx.fillText(text, textX, textY);
+      
+      chartCtx.save();
+    }
+  };
+  
   charts.winLoss = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: ['Won', 'Lost', 'Breakeven'],
       datasets: [{
         data: [wins, losses, breakevens],
-        backgroundColor: ['#2ecc71', '#e74c3c', '#f1c40f'],
-        borderColor: '#151f32',
-        borderWidth: 2
+        backgroundColor: ['#10b981', '#f43f5e', '#fbbf24'],
+        borderColor: 'rgba(0, 0, 0, 0.15)',
+        borderWidth: 1.5
       }]
     },
+    plugins: [centerTextPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '70%',
+      cutout: '72%',
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { color: styles.textColor, font: { family: 'Plus Jakarta Sans', weight: '600' } }
+          labels: { color: styles.textColor, font: { family: 'Inter', size: 11, weight: '600' } }
         },
         tooltip: {
           backgroundColor: styles.tooltipBg,
@@ -936,57 +1181,6 @@ function renderDayChart(closedTrades) {
       }
     }
   });
-}
-
-// Populate unique dates into Dashboard Filter select dropdown
-function populateDateFilters() {
-  const select = document.getElementById('dashboard-date-filter');
-  if (!select) return;
-  
-  select.innerHTML = '<option value="all">Semua Histori (Default)</option>';
-  
-  // Get unique dates (YYYY-MM-DD)
-  const uniqueDates = [...new Set(trades
-    .map(t => t.date ? t.date.split(' ')[0] : null)
-    .filter(d => d !== null && d !== '')
-  )];
-  
-  // Sort descending
-  uniqueDates.sort((a, b) => new Date(b) - new Date(a));
-  
-  // Add option elements
-  uniqueDates.forEach(date => {
-    const opt = document.createElement('option');
-    opt.value = date;
-    opt.innerText = formatDateIndo(date);
-    select.appendChild(opt);
-  });
-  
-  select.value = activeDateFilter;
-}
-
-// Format date into a human readable Indonesian format e.g. "19 Aug 2026"
-function formatDateIndo(dateStr) {
-  if (!dateStr) return '';
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
-  try {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      const year = parts[0];
-      const monthIdx = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      if (monthIdx >= 0 && monthIdx < 12) {
-        return `${day} ${months[monthIdx]} ${year}`;
-      }
-    }
-  } catch (e) {}
-  return dateStr; // fallback to original string
-}
-
-// Triggered when date filter changes
-function filterDashboardByDate(val) {
-  activeDateFilter = val;
-  updateStatsAndCharts();
 }
 
 // Adjust starting capital (Add/Deposit or Min/Withdraw)
