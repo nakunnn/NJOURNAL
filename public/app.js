@@ -91,7 +91,7 @@ async function switchAccount(accId) {
   currentAccount = String(accId);
   localStorage.setItem('njournal_active_account', currentAccount);
   
-  // Update Header Pill Buttons
+  // Update Header Pill Buttons & Sidebar Buttons
   ['1', '2', '3'].forEach(id => {
     const btn = document.getElementById(`btn-acc-${id}`);
     if (btn) {
@@ -101,14 +101,13 @@ async function switchAccount(accId) {
     const sideBtn = document.getElementById(`side-acc-${id}`);
     if (sideBtn) {
       if (id === currentAccount) {
-        sideBtn.style.background = 'var(--primary)';
-        sideBtn.style.color = '#000';
-        sideBtn.style.border = 'none';
+        sideBtn.classList.add('active');
       } else {
-        sideBtn.style.background = 'transparent';
-        sideBtn.style.color = 'var(--text-secondary)';
-        sideBtn.style.border = '1px solid var(--surface-border)';
+        sideBtn.classList.remove('active');
       }
+      sideBtn.style.background = '';
+      sideBtn.style.color = '';
+      sideBtn.style.border = '';
     }
   });
   
