@@ -14,18 +14,40 @@ app.use(express.static(path.join(__dirname, 'public')));
 const CREDENTIALS_PATH = process.env.GOOGLE_CREDS_PATH || '/home/vaio/file/STORE/MarinMD/optical-mode-435812-m2-f1e797ae5615.json';
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
-// Default config
+// Default accounts definition
+const DEFAULT_ACCOUNTS = {
+  "1": { name: "Akun 1", sheetName: "Trades", startingCapital: 10000 },
+  "2": { name: "Akun 2", sheetName: "Akun 2", startingCapital: 10000 },
+  "3": { name: "Akun 3", sheetName: "Akun 3", startingCapital: 10000 }
+};
+
+// Default app config
 let appConfig = {
   spreadsheetId: process.env.SPREADSHEET_ID || '',
-  sheetName: process.env.SHEET_NAME || 'Trades',
-  startingCapital: parseFloat(process.env.STARTING_CAPITAL) || 10000
+  currentAccount: '1',
+  accounts: JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS))
 };
 
 // Load config if exists and env variables aren't already set
 if (!process.env.SPREADSHEET_ID && fs.existsSync(CONFIG_PATH)) {
   try {
     const savedConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-    appConfig = { ...appConfig, ...savedConfig };
+    if (savedConfig.accounts) {
+      appConfig = { 
+        ...appConfig, 
+        ...savedConfig,
+        accounts: {
+          ...DEFAULT_ACCOUNTS,
+          ...savedConfig.accounts
+        }
+      };
+    } else {
+      // Migrate legacy config format
+      appConfig.spreadsheetId = savedConfig.spreadsheetId || appConfig.spreadsheetId;
+      appConfig.currentAccount = '1';
+      appConfig.accounts["1"].sheetName = savedConfig.sheetName || 'Trades';
+      appConfig.accounts["1"].startingCapital = parseFloat(savedConfig.startingCapital) || 10000;
+    }
   } catch (err) {
     console.error('Error reading config.json, resetting to default', err);
   }
@@ -41,28 +63,31 @@ function saveConfig(config) {
   }
 }
 
+// Helper to get an account object safely
+function getAccountConfig(accountId) {
+  const id = String(accountId || appConfig.currentAccount || '1');
+  if (!appConfig.accounts[id]) {
+    appConfig.accounts[id] = { 
+      name: `Akun ${id}`, 
+      sheetName: id === '1' ? 'Trades' : `Akun ${id}`, 
+      startingCapital: 10000 
+    };
+  }
+  return { id, ...appConfig.accounts[id] };
+}
+
 // Google Sheets auth setup
 function getGoogleAuthClient() {
-  // Option 1: Load directly from environment variables
   if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
     let privateKey = process.env.GOOGLE_PRIVATE_KEY.trim();
     
-    // Remove enclosing quotes if they were accidentally added
     if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
       privateKey = privateKey.slice(1, -1);
     } else if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
       privateKey = privateKey.slice(1, -1);
     }
     
-    // Replace literal '\n' string with actual newlines
     privateKey = privateKey.replace(/\\n/g, '\n');
-    
-    console.log('--- GOOGLE AUTH DIAGNOSTICS ---');
-    console.log('Client Email:', process.env.GOOGLE_CLIENT_EMAIL);
-    console.log('Private Key length:', privateKey.length);
-    console.log('Starts with -----BEGIN PRIVATE KEY-----:', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
-    console.log('Ends with -----END PRIVATE KEY-----:', privateKey.includes('-----END PRIVATE KEY-----'));
-    console.log('--------------------------------');
 
     return new google.auth.GoogleAuth({
       credentials: {
@@ -73,7 +98,6 @@ function getGoogleAuthClient() {
     });
   }
 
-  // Option 2: Load from credentials JSON file
   if (!fs.existsSync(CREDENTIALS_PATH)) {
     throw new Error(`Credentials file not found at ${CREDENTIALS_PATH}. Please configure GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY environment variables.`);
   }
@@ -119,7 +143,6 @@ const HEADERS = [
 
 // Helper to convert row array to trade object
 function rowToTrade(row, index) {
-  // Robust float parser handling numbers, strings, and commas
   const parseVal = (val) => {
     if (val === undefined || val === null || val === '') return 0;
     if (typeof val === 'number') return val;
@@ -129,7 +152,7 @@ function rowToTrade(row, index) {
   };
 
   return {
-    rowNumber: index + 1, // Store the row number (1-indexed) in spreadsheet
+    rowNumber: index + 1,
     id: row[0] || '',
     date: row[1] || '',
     ticker: row[2] || '',
@@ -165,33 +188,39 @@ function tradeToRow(trade) {
   ];
 }
 
-// Helper to get starting capital from Google Sheet Config tab
-async function getStartingCapitalFromSheet(sheets, spreadsheetId) {
+// Helper to get starting capital for an account from Google Sheet Config tab
+async function getStartingCapitalFromSheet(sheets, spreadsheetId, accountId = '1') {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Config!A1:B10',
+      range: 'Config!A1:B20',
       valueRenderOption: 'UNFORMATTED_VALUE'
     });
     const rows = response.data.values;
     if (rows && rows.length > 0) {
-      const row = rows.find(r => r[0] === 'startingCapital');
-      if (row && row[1]) {
-        const parsed = parseFloat(row[1]);
+      const keySpecific = `startingCapital_${accountId}`;
+      const rowSpecific = rows.find(r => r[0] === keySpecific);
+      if (rowSpecific && rowSpecific[1] !== undefined) {
+        const parsed = parseFloat(rowSpecific[1]);
         if (!isNaN(parsed)) return parsed;
+      }
+      if (accountId === '1') {
+        const legacyRow = rows.find(r => r[0] === 'startingCapital');
+        if (legacyRow && legacyRow[1] !== undefined) {
+          const parsed = parseFloat(legacyRow[1]);
+          if (!isNaN(parsed)) return parsed;
+        }
       }
     }
   } catch (err) {
-    // If the Config sheet tab does not exist yet, we ignore the error
-    console.log('startingCapital Config sheet tab not found or readable, using default.');
+    console.log(`Config sheet tab startingCapital for account ${accountId} not found or readable.`);
   }
   return null;
 }
 
-// Helper to save starting capital to Google Sheet Config tab
-async function saveStartingCapitalToSheet(sheets, spreadsheetId, value) {
+// Helper to save starting capital for an account to Google Sheet Config tab
+async function saveStartingCapitalToSheet(sheets, spreadsheetId, accountId, value) {
   try {
-    // Verify or Create Config sheet tab
     const meta = await sheets.spreadsheets.get({ spreadsheetId });
     const existingSheet = meta.data.sheets.find(s => s.properties.title === 'Config');
     
@@ -204,21 +233,92 @@ async function saveStartingCapitalToSheet(sheets, spreadsheetId, value) {
       });
     }
     
-    // Write key-value pair
+    let currentRows = [];
+    try {
+      const getRes = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Config!A:B',
+        valueRenderOption: 'UNFORMATTED_VALUE'
+      });
+      if (getRes.data.values) currentRows = getRes.data.values;
+    } catch (e) {}
+
+    if (currentRows.length === 0) {
+      currentRows = [['Key', 'Value']];
+    }
+    
+    const key = `startingCapital_${accountId}`;
+    const rowIndex = currentRows.findIndex(r => r[0] === key);
+    if (rowIndex >= 0) {
+      currentRows[rowIndex][1] = value;
+    } else {
+      currentRows.push([key, value]);
+    }
+    
+    if (accountId === '1') {
+      const legacyIdx = currentRows.findIndex(r => r[0] === 'startingCapital');
+      if (legacyIdx >= 0) {
+        currentRows[legacyIdx][1] = value;
+      } else {
+        currentRows.push(['startingCapital', value]);
+      }
+    }
+
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Config!A1:B2',
+      range: 'Config!A1:B' + currentRows.length,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [
-          ['Key', 'Value'],
-          ['startingCapital', value]
-        ]
+        values: currentRows
       }
     });
-    console.log('Saved startingCapital to Google Sheet Config tab:', value);
+    console.log(`Saved startingCapital_${accountId} to Google Sheet Config tab:`, value);
   } catch (err) {
     console.error('Error saving startingCapital to Google Sheet:', err.message);
+  }
+}
+
+// Helper to ensure a sheet tab exists with headers
+async function ensureSheetTabExists(sheets, spreadsheetId, sheetName) {
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const existing = meta.data.sheets.find(s => s.properties.title === sheetName);
+    if (!existing) {
+      const createRes = await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: sheetName } } }]
+        }
+      });
+      const sheetId = createRes.data.replies[0].addSheet.properties.sheetId;
+      
+      // Write headers
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1:M1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [HEADERS] }
+      });
+      
+      // Format headers: freeze top row
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            updateSheetProperties: {
+              properties: {
+                sheetId: sheetId,
+                gridProperties: { frozenRowCount: 1 }
+              },
+              fields: 'gridProperties.frozenRowCount'
+            }
+          }]
+        }
+      });
+      console.log(`Auto-created missing sheet tab '${sheetName}' with headers.`);
+    }
+  } catch (err) {
+    console.error(`Error ensuring sheet tab '${sheetName}' exists:`, err.message);
   }
 }
 
@@ -237,20 +337,26 @@ app.get('/api/config', async (req, res) => {
         sheetTitle = response.data.properties.title;
         connected = true;
         
-        // Fetch starting capital dynamically from Google Sheets Config tab!
-        const sheetCapital = await getStartingCapitalFromSheet(sheets, appConfig.spreadsheetId);
-        if (sheetCapital !== null) {
-          appConfig.startingCapital = sheetCapital;
+        // Fetch starting capital dynamically for all accounts
+        for (const accId of ['1', '2', '3']) {
+          const sheetCapital = await getStartingCapitalFromSheet(sheets, appConfig.spreadsheetId, accId);
+          if (sheetCapital !== null && appConfig.accounts[accId]) {
+            appConfig.accounts[accId].startingCapital = sheetCapital;
+          }
         }
       } catch (err) {
         console.error('Google Sheets connection check failed:', err.message);
       }
     }
     
+    const activeAcc = getAccountConfig(appConfig.currentAccount);
+    
     res.json({
       spreadsheetId: appConfig.spreadsheetId,
-      sheetName: appConfig.sheetName,
-      startingCapital: parseFloat(appConfig.startingCapital) || 10000,
+      currentAccount: appConfig.currentAccount || '1',
+      accounts: appConfig.accounts,
+      sheetName: activeAcc.sheetName,
+      startingCapital: parseFloat(activeAcc.startingCapital) || 10000,
       serviceAccountEmail,
       connected,
       sheetTitle
@@ -262,36 +368,57 @@ app.get('/api/config', async (req, res) => {
 
 // API: Save Configuration
 app.post('/api/config', async (req, res) => {
-  const { spreadsheetId, sheetName, startingCapital } = req.body;
-  if (!spreadsheetId) {
+  const { spreadsheetId, currentAccount, accounts, sheetName, startingCapital, accountId } = req.body;
+  if (!spreadsheetId && !appConfig.spreadsheetId) {
     return res.status(400).json({ error: 'Spreadsheet ID is required' });
   }
   
-  const targetSheetName = sheetName || 'Trades';
-  const capital = parseFloat(startingCapital) >= 0 ? parseFloat(startingCapital) : 10000;
+  const targetSpreadsheetId = spreadsheetId || appConfig.spreadsheetId;
+  const targetAccountId = String(accountId || currentAccount || appConfig.currentAccount || '1');
   
   try {
-    // Validate connection
     const auth = getGoogleAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
     
     const sheetMeta = await sheets.spreadsheets.get({
-      spreadsheetId: spreadsheetId,
+      spreadsheetId: targetSpreadsheetId,
     });
     
-    // Save startingCapital dynamically to Google Sheets Config tab!
-    await saveStartingCapitalToSheet(sheets, spreadsheetId, capital);
+    if (accounts) {
+      appConfig.accounts = { ...appConfig.accounts, ...accounts };
+      for (const [id, acc] of Object.entries(accounts)) {
+        if (acc.startingCapital !== undefined) {
+          await saveStartingCapitalToSheet(sheets, targetSpreadsheetId, id, parseFloat(acc.startingCapital) || 10000);
+        }
+      }
+    }
+    
+    if (sheetName || startingCapital !== undefined) {
+      if (!appConfig.accounts[targetAccountId]) {
+        appConfig.accounts[targetAccountId] = { name: `Akun ${targetAccountId}`, sheetName: `Akun ${targetAccountId}`, startingCapital: 10000 };
+      }
+      if (sheetName) appConfig.accounts[targetAccountId].sheetName = sheetName;
+      if (startingCapital !== undefined) {
+        const cap = parseFloat(startingCapital) >= 0 ? parseFloat(startingCapital) : 10000;
+        appConfig.accounts[targetAccountId].startingCapital = cap;
+        await saveStartingCapitalToSheet(sheets, targetSpreadsheetId, targetAccountId, cap);
+      }
+    }
+    
+    if (currentAccount) {
+      appConfig.currentAccount = String(currentAccount);
+    }
     
     saveConfig({
-      spreadsheetId,
-      sheetName: targetSheetName,
-      startingCapital: capital
+      spreadsheetId: targetSpreadsheetId,
+      currentAccount: appConfig.currentAccount,
+      accounts: appConfig.accounts
     });
     
     res.json({
       success: true,
       sheetTitle: sheetMeta.data.properties.title,
-      message: 'Connection successful and configuration saved.'
+      message: 'Configuration saved successfully.'
     });
   } catch (err) {
     console.error('Error connecting to sheet:', err);
@@ -301,7 +428,19 @@ app.post('/api/config', async (req, res) => {
   }
 });
 
-// API: Auto Initialize Sheet Structure
+// API: Switch Active Account
+app.post('/api/switch-account', (req, res) => {
+  const { accountId } = req.body;
+  if (!accountId) {
+    return res.status(400).json({ error: 'Account ID is required' });
+  }
+  appConfig.currentAccount = String(accountId);
+  saveConfig({ currentAccount: appConfig.currentAccount });
+  const acc = getAccountConfig(appConfig.currentAccount);
+  res.json({ success: true, currentAccount: appConfig.currentAccount, account: acc });
+});
+
+// API: Auto Initialize All Sheet Tabs for Multi-Account
 app.post('/api/init-sheet', async (req, res) => {
   if (!appConfig.spreadsheetId) {
     return res.status(400).json({ error: 'Spreadsheet ID is not configured.' });
@@ -310,104 +449,93 @@ app.post('/api/init-sheet', async (req, res) => {
   try {
     const sheets = getSheetsService();
     const spreadsheetId = appConfig.spreadsheetId;
-    const sheetName = appConfig.sheetName;
-    
-    // Check if sheet tab exists, if not create it
+    const accountIds = Object.keys(appConfig.accounts || DEFAULT_ACCOUNTS);
     const meta = await sheets.spreadsheets.get({ spreadsheetId });
-    const existingSheet = meta.data.sheets.find(s => s.properties.title === sheetName);
     
-    let sheetId = null;
-    
-    if (!existingSheet) {
-      // Create a new sheet tab
-      const createResponse = await sheets.spreadsheets.batchUpdate({
+    for (const accId of accountIds) {
+      const acc = appConfig.accounts[accId] || DEFAULT_ACCOUNTS[accId];
+      const sheetName = acc.sheetName || (accId === '1' ? 'Trades' : `Akun ${accId}`);
+      const existingSheet = meta.data.sheets.find(s => s.properties.title === sheetName);
+      
+      let sheetId = null;
+      if (!existingSheet) {
+        const createResponse = await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{ addSheet: { properties: { title: sheetName } } }]
+          }
+        });
+        sheetId = createResponse.data.replies[0].addSheet.properties.sheetId;
+      } else {
+        sheetId = existingSheet.properties.sheetId;
+      }
+      
+      // Write headers
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1:M1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [HEADERS] }
+      });
+      
+      // Format headers
+      await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
           requests: [
             {
-              addSheet: {
+              updateSheetProperties: {
                 properties: {
-                  title: sheetName
-                }
+                  sheetId: sheetId,
+                  gridProperties: { frozenRowCount: 1 }
+                },
+                fields: 'gridProperties.frozenRowCount'
+              }
+            },
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: 0,
+                  endRowIndex: 1,
+                  startColumnIndex: 0,
+                  endColumnIndex: HEADERS.length
+                },
+                cell: {
+                  userEnteredFormat: {
+                    textFormat: { bold: true },
+                    backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 }
+                  }
+                },
+                fields: 'userEnteredFormat(textFormat,backgroundColor)'
               }
             }
           ]
         }
       });
-      sheetId = createResponse.data.replies[0].addSheet.properties.sheetId;
-    } else {
-      sheetId = existingSheet.properties.sheetId;
     }
     
-    // Write headers and apply some styling (freeze first row, bold text)
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${sheetName}!A1:M1`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [HEADERS]
-      }
-    });
-    
-    // Apply styling: Freeze row 1 and format bold headers
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [
-          {
-            updateSheetProperties: {
-              properties: {
-                sheetId: sheetId,
-                gridProperties: {
-                  frozenRowCount: 1
-                }
-              },
-              fields: 'gridProperties.frozenRowCount'
-            }
-          },
-          {
-            repeatCell: {
-              range: {
-                sheetId: sheetId,
-                startRowIndex: 0,
-                endRowIndex: 1,
-                startColumnIndex: 0,
-                endColumnIndex: HEADERS.length
-              },
-              cell: {
-                userEnteredFormat: {
-                  textFormat: {
-                    bold: true
-                  },
-                  backgroundColor: {
-                    red: 0.9,
-                    green: 0.9,
-                    blue: 0.9
-                  }
-                }
-              },
-              fields: 'userEnteredFormat(textFormat,backgroundColor)'
-            }
-          }
-        ]
-      }
-    });
-    
-    res.json({ success: true, message: `Sheet '${sheetName}' initialized successfully with headers.` });
+    res.json({ success: true, message: 'All account sheets (Akun 1, Akun 2, Akun 3) initialized successfully with headers.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Get All Trades
+// API: Get All Trades for Specific Account
 app.get('/api/trades', async (req, res) => {
   if (!appConfig.spreadsheetId) {
     return res.json({ trades: [], error: 'Spreadsheet ID not configured' });
   }
   
+  const accountId = req.query.account || appConfig.currentAccount || '1';
+  const acc = getAccountConfig(accountId);
+  
   try {
     const sheets = getSheetsService();
-    const range = `${appConfig.sheetName}!A:M`;
+    const range = `${acc.sheetName}!A:M`;
+    
+    // Auto-ensure sheet tab exists
+    await ensureSheetTabExists(sheets, appConfig.spreadsheetId, acc.sheetName);
     
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: appConfig.spreadsheetId,
@@ -417,36 +545,32 @@ app.get('/api/trades', async (req, res) => {
     
     const rows = response.data.values;
     if (!rows || rows.length <= 1) {
-      // Empty or only headers
       return res.json({ trades: [] });
     }
     
-    // Header is row 0. Trades are row 1 onwards.
     const trades = rows.slice(1).map((row, index) => rowToTrade(row, index + 1));
-    // Filter out rows that are entirely empty
     const validTrades = trades.filter(t => t.id || t.ticker);
     
-    res.json({ trades: validTrades });
+    res.json({ trades: validTrades, account: acc });
   } catch (err) {
     console.error('Error fetching trades:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Add a Trade
+// API: Add a Trade to Specific Account
 app.post('/api/trades', async (req, res) => {
   if (!appConfig.spreadsheetId) {
     return res.status(400).json({ error: 'Spreadsheet ID not configured' });
   }
   
+  const accountId = req.body.account || req.query.account || appConfig.currentAccount || '1';
+  const acc = getAccountConfig(accountId);
+  
   try {
     const sheets = getSheetsService();
     const trade = req.body;
     
-    // Auto-calculate P&L and ROI
-    // Long: P&L = (Exit - Entry) * Size - Fees
-    // Short: P&L = (Entry - Exit) * Size - Fees
-    // ROI = P&L / (Entry * Size) * 100
     const entry = parseFloat(trade.entryPrice) || 0;
     const exit = parseFloat(trade.exitPrice) || 0;
     const size = parseFloat(trade.size) || 0;
@@ -480,29 +604,31 @@ app.post('/api/trades', async (req, res) => {
       roi = 0;
     }
     
-    trade.pnl = Math.round(pnl * 100) / 100; // round to 2 decimal places
+    trade.pnl = Math.round(pnl * 100) / 100;
     trade.roi = Math.round(roi * 100) / 100;
     trade.id = `T-${Date.now()}`;
+    
+    await ensureSheetTabExists(sheets, appConfig.spreadsheetId, acc.sheetName);
     
     const rowData = tradeToRow(trade);
     
     await sheets.spreadsheets.values.append({
       spreadsheetId: appConfig.spreadsheetId,
-      range: `${appConfig.sheetName}!A:M`,
+      range: `${acc.sheetName}!A:M`,
       valueInputOption: 'RAW',
       requestBody: {
         values: [rowData]
       }
     });
     
-    res.json({ success: true, trade });
+    res.json({ success: true, trade, account: acc });
   } catch (err) {
     console.error('Error adding trade:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Update an Existing Trade
+// API: Update an Existing Trade in Specific Account
 app.put('/api/trades/:id', async (req, res) => {
   if (!appConfig.spreadsheetId) {
     return res.status(400).json({ error: 'Spreadsheet ID not configured' });
@@ -510,13 +636,14 @@ app.put('/api/trades/:id', async (req, res) => {
   
   const tradeId = req.params.id;
   const updatedTrade = req.body;
+  const accountId = req.body.account || req.query.account || appConfig.currentAccount || '1';
+  const acc = getAccountConfig(accountId);
   
   try {
     const sheets = getSheetsService();
     const spreadsheetId = appConfig.spreadsheetId;
-    const sheetName = appConfig.sheetName;
+    const sheetName = acc.sheetName;
     
-    // Fetch all values to find the row index
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${sheetName}!A:M`,
@@ -528,13 +655,11 @@ app.put('/api/trades/:id', async (req, res) => {
       return res.status(404).json({ error: 'No data found in sheet' });
     }
     
-    // Find row by Trade ID (column A)
     const rowIndex = rows.findIndex(row => row[0] === tradeId);
     if (rowIndex === -1) {
       return res.status(404).json({ error: 'Trade ID not found in sheet' });
     }
     
-    // Re-calculate P&L and ROI
     const entry = parseFloat(updatedTrade.entryPrice) || 0;
     const exit = parseFloat(updatedTrade.exitPrice) || 0;
     const size = parseFloat(updatedTrade.size) || 0;
@@ -570,12 +695,9 @@ app.put('/api/trades/:id', async (req, res) => {
     
     updatedTrade.pnl = Math.round(pnl * 100) / 100;
     updatedTrade.roi = Math.round(roi * 100) / 100;
-    updatedTrade.id = tradeId; // Keep same ID
+    updatedTrade.id = tradeId;
     
     const rowData = tradeToRow(updatedTrade);
-    
-    // RowIndex is 0-based. Google Sheets API range uses 1-based indexing.
-    // So rowIndex 0 is A1:M1, rowIndex 1 is A2:M2.
     const updateRange = `${sheetName}!A${rowIndex + 1}:M${rowIndex + 1}`;
     
     await sheets.spreadsheets.values.update({
@@ -587,27 +709,28 @@ app.put('/api/trades/:id', async (req, res) => {
       }
     });
     
-    res.json({ success: true, trade: updatedTrade });
+    res.json({ success: true, trade: updatedTrade, account: acc });
   } catch (err) {
     console.error('Error updating trade:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Delete a Trade
+// API: Delete a Trade from Specific Account
 app.delete('/api/trades/:id', async (req, res) => {
   if (!appConfig.spreadsheetId) {
     return res.status(400).json({ error: 'Spreadsheet ID not configured' });
   }
   
   const tradeId = req.params.id;
+  const accountId = req.query.account || appConfig.currentAccount || '1';
+  const acc = getAccountConfig(accountId);
   
   try {
     const sheets = getSheetsService();
     const spreadsheetId = appConfig.spreadsheetId;
-    const sheetName = appConfig.sheetName;
+    const sheetName = acc.sheetName;
     
-    // Get sheets meta to get sheetId and find row index
     const meta = await sheets.spreadsheets.get({ spreadsheetId });
     const sheetInfo = meta.data.sheets.find(s => s.properties.title === sheetName);
     if (!sheetInfo) {
@@ -626,15 +749,11 @@ app.delete('/api/trades/:id', async (req, res) => {
       return res.status(404).json({ error: 'No data found in sheet' });
     }
     
-    // Find row by Trade ID (column A)
     const rowIndex = rows.findIndex(row => row[0] === tradeId);
     if (rowIndex === -1) {
       return res.status(404).json({ error: 'Trade ID not found in sheet' });
     }
     
-    // Delete row via batchUpdate
-    // rowIndex is 0-based index. In deleteDimension, startIndex is inclusive and endIndex is exclusive.
-    // E.g. to delete rowIndex 2 (row 3 of sheet), startIndex = 2, endIndex = 3.
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
@@ -653,7 +772,7 @@ app.delete('/api/trades/:id', async (req, res) => {
       }
     });
     
-    res.json({ success: true, message: `Trade ${tradeId} deleted successfully.` });
+    res.json({ success: true, message: `Trade ${tradeId} deleted successfully.`, account: acc });
   } catch (err) {
     console.error('Error deleting trade:', err);
     res.status(500).json({ error: err.message });

@@ -8,6 +8,77 @@
   <!-- Chart.js for data visualization -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /* Global Account Switcher Styles */
+    .account-switcher {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--border-radius-sm);
+      padding: 2px;
+      gap: 2px;
+    }
+    .btn-account {
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: var(--border-radius-sm);
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    .btn-account:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .btn-account.active {
+      background: var(--primary) !important;
+      color: #000 !important;
+    }
+
+    .btn-account-pill {
+      transition: all 0.2s ease;
+    }
+    .btn-account-pill.active {
+      background: var(--primary) !important;
+      color: #000 !important;
+      border-color: var(--primary) !important;
+    }
+
+    /* Global Table Slider Styling (Applies to desktop & mobile) */
+    .table-container {
+      overflow-x: auto;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.15);
+    }
+    .table-container thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background-color: var(--surface-color);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .table-container::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .table-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+    }
+    .table-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+    .table-container::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+
     /* Global Mobile Overrides */
     @media (max-width: 768px) {
       .app-container {
@@ -56,7 +127,7 @@
       }
       .main-panel {
         margin-left: 0 !important;
-        padding-top: 70px !important; /* avoid overlapping header */
+        padding-top: 70px !important;
         height: auto !important;
         min-height: 100vh;
       }
@@ -96,6 +167,7 @@
       }
       .chart-card {
         padding: 16px !important;
+        min-width: 0 !important;
       }
       .chart-header {
         flex-direction: column !important;
@@ -136,9 +208,6 @@
       }
       
       /* Table sliding (Left-Right & Up-Down) */
-      .chart-card {
-        min-width: 0 !important;
-      }
       .table-container {
         overflow-x: auto !important;
         overflow-y: auto !important;
@@ -235,38 +304,6 @@
         gap: 12px !important;
       }
     }
-
-    /* Global Table Slider Styling (Applies to desktop & mobile) */
-    .table-container {
-      overflow-x: auto;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.15);
-    }
-    .table-container thead th {
-      position: sticky;
-      top: 0;
-      z-index: 5;
-      background-color: var(--surface-color);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-    }
-    .table-container::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    .table-container::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.15);
-      border-radius: 4px;
-    }
-    .table-container::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 4px;
-    }
-    .table-container::-webkit-scrollbar-thumb:hover {
-      background: var(--primary);
-    }
     
     /* Button Text responsive collapse (turn into icon button on narrow screens) */
     @media (max-width: 600px) {
@@ -275,6 +312,10 @@
       }
       .btn {
         padding: 8px 10px !important;
+      }
+      .account-switcher .btn-account {
+        padding: 4px 8px !important;
+        font-size: 0.7rem !important;
       }
     }
   </style>
@@ -288,6 +329,19 @@
       <div class="brand">
         <div class="brand-logo">N</div>
         <div class="brand-name">N-Journal</div>
+      </div>
+
+      <!-- Active Account Switcher in Sidebar -->
+      <div class="sidebar-account-container" style="margin-bottom: 20px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--surface-border); border-radius: var(--border-radius-md);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Active Account</span>
+          <span class="badge badge-won" id="sidebar-account-label" style="font-size: 0.65rem; padding: 2px 6px;">Akun 1</span>
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button type="button" class="btn-account-pill active" id="side-acc-1" onclick="switchAccount('1')" style="flex: 1; padding: 5px 0; font-size: 0.72rem; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; text-align: center;">Akun 1</button>
+          <button type="button" class="btn-account-pill" id="side-acc-2" onclick="switchAccount('2')" style="flex: 1; padding: 5px 0; font-size: 0.72rem; font-weight: 700; border-radius: 4px; border: 1px solid var(--surface-border); background: transparent; color: var(--text-secondary); cursor: pointer; text-align: center;">Akun 2</button>
+          <button type="button" class="btn-account-pill" id="side-acc-3" onclick="switchAccount('3')" style="flex: 1; padding: 5px 0; font-size: 0.72rem; font-weight: 700; border-radius: 4px; border: 1px solid var(--surface-border); background: transparent; color: var(--text-secondary); cursor: pointer; text-align: center;">Akun 3</button>
+        </div>
       </div>
       
       <ul class="nav-links">
@@ -343,6 +397,14 @@
           </button>
           <h1 id="page-title" style="margin: 0;">Dashboard</h1>
         </div>
+
+        <!-- Multi-Account Selector in Header -->
+        <div class="account-switcher" id="account-switcher-header">
+          <button type="button" class="btn-account active" id="btn-acc-1" onclick="switchAccount('1')">Akun 1</button>
+          <button type="button" class="btn-account" id="btn-acc-2" onclick="switchAccount('2')">Akun 2</button>
+          <button type="button" class="btn-account" id="btn-acc-3" onclick="switchAccount('3')">Akun 3</button>
+        </div>
+
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="fetchData()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
@@ -355,10 +417,8 @@
         </div>
       </header>
 
-
-
       <!-- 2. DASHBOARD PAGE -->
-      <section id="dashboard-page" class="page-content">
+      <section id="dashboard-page" class="page-content active">
         
         <!-- Dashboard Filter Bar -->
         <div class="dashboard-filter-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;">
@@ -370,57 +430,59 @@
             <button onclick="filterDashboardRange('all')" id="db-f-all" style="padding: 6px 14px; font-size: 0.75rem; font-weight: 700; background: var(--primary); color: #000; border: none; cursor: pointer; border-radius: var(--border-radius-sm); text-transform: uppercase; transition: all 0.2s;">All Time</button>
           </div>
         </div>
-        
-        <!-- Premium Dashboard Hero Panel -->
+
+        <!-- Hero Card -->
         <div class="dashboard-hero">
           <div class="hero-main-stats">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
               <span class="hero-label" style="margin-bottom: 0; line-height: 1;">Account Balance</span>
               <div class="balance-adjust-buttons" style="display: flex; gap: 6px;">
-                <button onclick="adjustStartingCapital('add')" style="padding: 2px 8px; font-size: 0.65rem; font-weight: 800; background: rgba(20, 184, 166, 0.2); color: #14b8a6; border: 1px solid #14b8a6; cursor: pointer; border-radius: 4px; text-transform: uppercase; line-height: 1.2;" title="Tambah Saldo (Deposit)">+ Add</button>
-                <button onclick="adjustStartingCapital('min')" style="padding: 2px 8px; font-size: 0.65rem; font-weight: 800; background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid #f43f5e; cursor: pointer; border-radius: 4px; text-transform: uppercase; line-height: 1.2;" title="Kurangi Saldo (Withdraw)">- Min</button>
+                <button onclick="adjustStartingCapital('add')" class="btn-balance-adjust" title="Add to starting capital" style="padding: 2px 8px; font-size: 0.7rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; cursor: pointer; transition: all 0.2s;">+ Add</button>
+                <button onclick="adjustStartingCapital('subtract')" class="btn-balance-adjust" title="Withdraw / Subtract from starting capital" style="padding: 2px 8px; font-size: 0.7rem; font-weight: 700; background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 4px; cursor: pointer; transition: all 0.2s;">- Min</button>
               </div>
             </div>
             <div class="hero-balance-wrapper">
-              <span class="hero-balance" id="hero-total-balance">$0.00</span>
-              <span class="hero-pnl-pill neutral" id="hero-pnl-pill">
+              <div class="hero-balance" id="hero-total-balance">$0.00</div>
+              <div class="hero-pnl-pill" id="hero-pnl-pill">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
                 <span id="hero-pnl-text">+$0.00</span>
-              </span>
+              </div>
             </div>
           </div>
+          
           <div class="hero-meta-grid">
             <div class="hero-meta-item">
-              <span class="hero-meta-label">Account ROI</span>
-              <span class="hero-meta-value text-profit" id="hero-account-roi">+0.00%</span>
+              <span class="meta-label">Account ROI</span>
+              <span class="meta-val positive" id="hero-account-roi">0.00%</span>
             </div>
             <div class="hero-meta-item">
-              <span class="hero-meta-label">Win Rate</span>
-              <span class="hero-meta-value" id="hero-win-rate">0%</span>
+              <span class="meta-label">Win Rate</span>
+              <span class="meta-val highlight" id="hero-win-rate">0%</span>
             </div>
             <div class="hero-meta-item">
-              <span class="hero-meta-label">Total Trades</span>
-              <span class="hero-meta-value" id="hero-total-trades">0</span>
+              <span class="meta-label">Total Trades</span>
+              <span class="meta-val" id="hero-total-trades">0</span>
             </div>
           </div>
         </div>
 
-        <!-- Secondary Stats Cards Grid -->
+        <!-- Key Metrics Cards -->
         <div class="stats-grid">
-          <div class="stat-card positive" id="card-pnl">
+          <div class="stat-card" id="card-net-pnl">
             <div class="stat-header">
               <span>Net Profit/Loss</span>
-              <span id="pnl-trend-icon"></span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
             </div>
             <div class="stat-value" id="stat-net-pnl">$0.00</div>
             <div class="stat-footer">
-              <span id="stat-avg-roi">+0.00% Avg. ROI</span>
+              <span id="stat-avg-trade-roi">0.00% Avg. Trade ROI</span>
             </div>
           </div>
-          
-          <div class="stat-card interactive">
+
+          <div class="stat-card">
             <div class="stat-header">
               <span>Win / Loss Record</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             </div>
             <div class="stat-value" id="stat-win-loss-ratio-val">0W - 0L</div>
             <div class="stat-footer">
@@ -459,10 +521,10 @@
                 <h3 style="margin: 0;">Account Growth (Equity Curve)</h3>
               </div>
               <div class="timeframe-selector" style="display: flex; gap: 4px; background: rgba(255,255,255,0.03); border: 1px solid var(--surface-border); padding: 2px; border-radius: var(--border-radius-sm);">
-                <button onclick="filterEquityByTimeframe('1D')" id="tf-1D" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: transparent; color: var(--text-secondary); border: none; cursor: pointer; border-radius: 4px; text-transform: uppercase;">1D</button>
-                <button onclick="filterEquityByTimeframe('1W')" id="tf-1W" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: transparent; color: var(--text-secondary); border: none; cursor: pointer; border-radius: 4px; text-transform: uppercase;">1W</button>
-                <button onclick="filterEquityByTimeframe('1M')" id="tf-1M" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: transparent; color: var(--text-secondary); border: none; cursor: pointer; border-radius: 4px; text-transform: uppercase;">1M</button>
-                <button onclick="filterEquityByTimeframe('all')" id="tf-all" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: var(--primary); color: #000; border: none; cursor: pointer; border-radius: 4px; text-transform: uppercase;">All</button>
+                <button onclick="filterEquityByTimeframe('1D')" id="tf-1D" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: transparent; color: var(--text-secondary); border: none; cursor: pointer; border-radius: 4px; transition: all 0.2s;">1D</button>
+                <button onclick="filterEquityByTimeframe('1W')" id="tf-1W" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: transparent; color: var(--text-secondary); border: none; cursor: pointer; border-radius: 4px; transition: all 0.2s;">1W</button>
+                <button onclick="filterEquityByTimeframe('1M')" id="tf-1M" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: transparent; color: var(--text-secondary); border: none; cursor: pointer; border-radius: 4px; transition: all 0.2s;">1M</button>
+                <button onclick="filterEquityByTimeframe('all')" id="tf-all" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700; background: var(--primary); color: #000; border: none; cursor: pointer; border-radius: 4px; transition: all 0.2s;">ALL</button>
               </div>
             </div>
             <div class="chart-container">
@@ -470,7 +532,6 @@
             </div>
           </div>
           
-          <!-- Win Loss Donut Chart -->
           <div class="chart-card">
             <div class="chart-header">
               <div class="chart-title">
@@ -483,12 +544,12 @@
           </div>
         </div>
 
-        <!-- Secondary Charts -->
-        <div class="small-charts-grid">
+        <!-- Strategy Breakdown and Day of Week Performance -->
+        <div class="small-charts-grid" style="margin-top: 24px;">
           <div class="chart-card">
             <div class="chart-header">
               <div class="chart-title">
-                <h3>Performance by Strategy</h3>
+                <h3>Strategy Performance</h3>
               </div>
             </div>
             <div class="chart-container">
@@ -624,39 +685,84 @@
       <section id="settings-page" class="page-content">
         <div class="setup-wizard" style="margin: 0; max-width: 100%;">
           <h2>Google Sheets Configuration</h2>
-          <p style="color:var(--text-secondary); margin-bottom: 24px;">Manage your Google Sheets database integration and account settings.</p>
+          <p style="color:var(--text-secondary); margin-bottom: 24px;">Manage your Google Sheets database integration and multi-account settings.</p>
           
           <form id="settings-form" onsubmit="saveSettings(event)">
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 24px;">
               <label for="settings-spreadsheet-id">Google Spreadsheet ID</label>
               <input type="text" id="settings-spreadsheet-id" class="form-control" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ123456" required>
             </div>
             
-            <div class="form-grid-3">
-              <div class="form-group">
-                <label for="settings-sheet-name">Sheet Tab Name</label>
-                <input type="text" id="settings-sheet-name" class="form-control" value="Trades" required>
+            <h3 style="font-size: 1rem; margin-top: 24px; margin-bottom: 12px; color: var(--primary);">Multi-Account Settings</h3>
+            <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+              <!-- Akun 1 -->
+              <div style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--surface-border); border-radius: var(--border-radius-md);">
+                <div style="margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+                  <span class="badge badge-won" style="font-weight:700;">Account 1</span>
+                  <input type="text" id="acc-name-1" class="form-control" style="height:32px; width:150px; padding: 4px 8px; font-weight:700;" value="Akun 1">
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="acc-sheet-1">Sheet Tab Name</label>
+                    <input type="text" id="acc-sheet-1" class="form-control" value="Trades" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="acc-capital-1">Starting Capital ($)</label>
+                    <input type="text" id="acc-capital-1" class="form-control" value="10000" required>
+                  </div>
+                </div>
               </div>
-              <div class="form-group">
-                <label for="settings-starting-capital">Starting Capital ($)</label>
-                <input type="text" id="settings-starting-capital" class="form-control" value="10000" required>
+
+              <!-- Akun 2 -->
+              <div style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--surface-border); border-radius: var(--border-radius-md);">
+                <div style="margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+                  <span class="badge badge-won" style="font-weight:700;">Account 2</span>
+                  <input type="text" id="acc-name-2" class="form-control" style="height:32px; width:150px; padding: 4px 8px; font-weight:700;" value="Akun 2">
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="acc-sheet-2">Sheet Tab Name</label>
+                    <input type="text" id="acc-sheet-2" class="form-control" value="Akun 2" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="acc-capital-2">Starting Capital ($)</label>
+                    <input type="text" id="acc-capital-2" class="form-control" value="10000" required>
+                  </div>
+                </div>
               </div>
-              <div class="form-group" style="display:flex; align-items:flex-end;">
-                <button type="submit" class="btn btn-primary" style="width: 100%; height: 46px;">
-                  Update Settings
-                </button>
+
+              <!-- Akun 3 -->
+              <div style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--surface-border); border-radius: var(--border-radius-md);">
+                <div style="margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+                  <span class="badge badge-won" style="font-weight:700;">Account 3</span>
+                  <input type="text" id="acc-name-3" class="form-control" style="height:32px; width:150px; padding: 4px 8px; font-weight:700;" value="Akun 3">
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="acc-sheet-3">Sheet Tab Name</label>
+                    <input type="text" id="acc-sheet-3" class="form-control" value="Akun 3" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="acc-capital-3">Starting Capital ($)</label>
+                    <input type="text" id="acc-capital-3" class="form-control" value="10000" required>
+                  </div>
+                </div>
               </div>
             </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; height: 46px;">
+              Save Multi-Account Settings
+            </button>
           </form>
           
           <div style="border-top: 1px solid var(--surface-border); margin-top: 30px; padding-top: 24px;">
             <h3>Service Onboarding & Utilities</h3>
-            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom: 16px;">Use the utilities below to automatically format your spreadsheet columns to work with NJournal.</p>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom: 16px;">Use the utilities below to automatically format your spreadsheet columns and tabs for all accounts.</p>
             
             <div style="display:flex; flex-wrap:wrap; gap:12px;">
               <button class="btn btn-secondary" onclick="initializeSheetStructure()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-                Initialize Columns & Format Sheet
+                Initialize All Account Sheets (Akun 1, 2, 3)
               </button>
               
               <button class="btn btn-danger" onclick="disconnectSheet()">
@@ -694,6 +800,15 @@
       <form id="trade-form" onsubmit="saveTrade(event)">
         <input type="hidden" id="trade-id-field">
         <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="trade-account-select">Target Journal Account</label>
+            <select id="trade-account-select" class="form-control">
+              <option value="1">Akun 1</option>
+              <option value="2">Akun 2</option>
+              <option value="3">Akun 3</option>
+            </select>
+          </div>
+
           <div class="form-grid-2">
             <div class="form-group">
               <label for="trade-date">Date & Time</label>
@@ -755,22 +870,23 @@
           </div>
           
           <div class="form-group">
-            <label for="trade-notes">Notes & Analysis</label>
-            <textarea id="trade-notes" class="form-control" rows="3" placeholder="Why did you take this trade? Describe your setup, psychology, or exit plan..."></textarea>
+            <label for="trade-notes">Notes / Observations</label>
+            <textarea id="trade-notes" class="form-control" rows="2" placeholder="Market conditions, psychology, execution details..."></textarea>
           </div>
         </div>
         
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeTradeModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Trade</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-trade">Save Trade</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Notification system -->
-  <div class="notification-container" id="notification-container"></div>
+  <!-- Notification Popup Wrapper -->
+  <div id="notification-container" class="notification-container"></div>
 
+  <!-- Main Application Script -->
   <script src="app.js"></script>
 </body>
 </html>

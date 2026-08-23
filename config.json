@@ -1,5 +1,21 @@
 {
   "spreadsheetId": "1R6xjfPHdxouVoVMra_NRwYPw3cSE2ME74j64feYsloY",
-  "sheetName": "Trades",
-  "startingCapital": 264
+  "currentAccount": "1",
+  "accounts": {
+    "1": {
+      "name": "Akun 1",
+      "sheetName": "Trades",
+      "startingCapital": 214
+    },
+    "2": {
+      "name": "Akun 2",
+      "sheetName": "Akun 2",
+      "startingCapital": 10000
+    },
+    "3": {
+      "name": "Akun 3",
+      "sheetName": "Akun 3",
+      "startingCapital": 10000
+    }
+  }
 }

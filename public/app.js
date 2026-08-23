@@ -4,6 +4,7 @@ let sheetConfig = null;
 let charts = {};
 let activeDashboardFilter = 'all';
 let equityTimeframe = 'all';
+let currentAccount = localStorage.getItem('njournal_active_account') || '1';
 
 // Helper to parse floats that might contain commas
 function parseLocalFloat(val) {
@@ -11,6 +12,17 @@ function parseLocalFloat(val) {
   const sanitized = String(val).replace(/,/g, '.').replace(/\s/g, '');
   const parsed = parseFloat(sanitized);
   return isNaN(parsed) ? 0 : parsed;
+}
+
+// Helper to get active account starting capital
+function getActiveAccountCapital() {
+  if (sheetConfig && sheetConfig.accounts && sheetConfig.accounts[currentAccount]) {
+    return parseLocalFloat(sheetConfig.accounts[currentAccount].startingCapital) || 10000;
+  }
+  if (sheetConfig && sheetConfig.startingCapital) {
+    return parseLocalFloat(sheetConfig.startingCapital) || 10000;
+  }
+  return 10000;
 }
 
 // Theme Selector logic
@@ -24,7 +36,6 @@ function changeTheme(themeName) {
   }
   localStorage.setItem('njournal-theme', themeName);
   
-  // Set select input value if it exists
   const select = document.getElementById('theme-select');
   if (select) {
     select.value = themeName;
@@ -60,7 +71,6 @@ const tradeIdField = document.getElementById('trade-id-field');
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-  // Sync theme selector dropdown value
   const select = document.getElementById('theme-select');
   if (select) {
     select.value = localStorage.getItem('njournal-theme') || 'default';
@@ -70,14 +80,59 @@ document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   const localISOTime = new Date(now - offset).toISOString().slice(0, 16);
-  document.getElementById('trade-date').value = localISOTime;
+  const tradeDateInput = document.getElementById('trade-date');
+  if (tradeDateInput) tradeDateInput.value = localISOTime;
 
   checkConfig();
 });
 
+// Switch Active Account (Akun 1, Akun 2, Akun 3)
+async function switchAccount(accId) {
+  currentAccount = String(accId);
+  localStorage.setItem('njournal_active_account', currentAccount);
+  
+  // Update Header Pill Buttons
+  ['1', '2', '3'].forEach(id => {
+    const btn = document.getElementById(`btn-acc-${id}`);
+    if (btn) {
+      if (id === currentAccount) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+    const sideBtn = document.getElementById(`side-acc-${id}`);
+    if (sideBtn) {
+      if (id === currentAccount) {
+        sideBtn.style.background = 'var(--primary)';
+        sideBtn.style.color = '#000';
+        sideBtn.style.border = 'none';
+      } else {
+        sideBtn.style.background = 'transparent';
+        sideBtn.style.color = 'var(--text-secondary)';
+        sideBtn.style.border = '1px solid var(--surface-border)';
+      }
+    }
+  });
+  
+  // Update sidebar label
+  const sideLabel = document.getElementById('sidebar-account-label');
+  if (sideLabel) {
+    const accName = sheetConfig && sheetConfig.accounts && sheetConfig.accounts[currentAccount] ? sheetConfig.accounts[currentAccount].name : `Akun ${currentAccount}`;
+    sideLabel.innerText = accName;
+  }
+  
+  // Update modal account select
+  const modalSelect = document.getElementById('trade-account-select');
+  if (modalSelect) {
+    modalSelect.value = currentAccount;
+  }
+  
+  showNotification(`Switched to Akun ${currentAccount}`, 'info');
+  await fetchData();
+}
+
 // Show Notification toast
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
+  if (!container) return;
   const notification = document.createElement('div');
   notification.className = `notification ${type}`;
   
@@ -97,12 +152,10 @@ function showNotification(message, type = 'info') {
   
   container.appendChild(notification);
   
-  // Trigger animation reflow
   setTimeout(() => {
     notification.classList.add('show');
   }, 10);
   
-  // Remove after 4 seconds
   setTimeout(() => {
     notification.classList.remove('show');
     setTimeout(() => {
@@ -140,14 +193,25 @@ async function checkConfig() {
     
     // Update settings form values
     document.getElementById('settings-spreadsheet-id').value = data.spreadsheetId || '';
-    document.getElementById('settings-sheet-name').value = data.sheetName || 'Trades';
-    document.getElementById('settings-starting-capital').value = data.startingCapital || 10000;
+    
+    // Populate multi-account form fields in Settings
+    if (data.accounts) {
+      for (const id of ['1', '2', '3']) {
+        const acc = data.accounts[id] || {};
+        const nameEl = document.getElementById(`acc-name-${id}`);
+        const sheetEl = document.getElementById(`acc-sheet-${id}`);
+        const capEl = document.getElementById(`acc-capital-${id}`);
+        if (nameEl) nameEl.value = acc.name || `Akun ${id}`;
+        if (sheetEl) sheetEl.value = acc.sheetName || (id === '1' ? 'Trades' : `Akun ${id}`);
+        if (capEl) capEl.value = acc.startingCapital !== undefined ? acc.startingCapital : 10000;
+      }
+    }
+    
+    // Sync active account
+    switchAccount(currentAccount);
     
     btnAddTradeHeader.style.display = 'inline-flex';
-    
-    // Always load dashboard and fetch data
     switchPage('dashboard');
-    await fetchData();
   } catch (err) {
     console.error('Error checking config:', err);
     showNotification('Backend server connection failed. Please start your server.', 'error');
@@ -158,21 +222,37 @@ async function checkConfig() {
 async function saveSettings(e) {
   e.preventDefault();
   const spreadsheetId = document.getElementById('settings-spreadsheet-id').value.trim();
-  const sheetName = document.getElementById('settings-sheet-name').value.trim() || 'Trades';
-  const startingCapital = parseLocalFloat(document.getElementById('settings-starting-capital').value) || 10000;
   
-  showNotification('Saving settings...', 'info');
+  const accounts = {
+    "1": {
+      name: document.getElementById('acc-name-1').value.trim() || 'Akun 1',
+      sheetName: document.getElementById('acc-sheet-1').value.trim() || 'Trades',
+      startingCapital: parseLocalFloat(document.getElementById('acc-capital-1').value) || 10000
+    },
+    "2": {
+      name: document.getElementById('acc-name-2').value.trim() || 'Akun 2',
+      sheetName: document.getElementById('acc-sheet-2').value.trim() || 'Akun 2',
+      startingCapital: parseLocalFloat(document.getElementById('acc-capital-2').value) || 10000
+    },
+    "3": {
+      name: document.getElementById('acc-name-3').value.trim() || 'Akun 3',
+      sheetName: document.getElementById('acc-sheet-3').value.trim() || 'Akun 3',
+      startingCapital: parseLocalFloat(document.getElementById('acc-capital-3').value) || 10000
+    }
+  };
+  
+  showNotification('Saving multi-account settings...', 'info');
   
   try {
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ spreadsheetId, sheetName, startingCapital })
+      body: JSON.stringify({ spreadsheetId, accounts, currentAccount })
     });
     
     const data = await res.json();
     if (res.ok && data.success) {
-      showNotification('Google Sheet settings updated successfully!', 'success');
+      showNotification('Multi-Account configuration saved successfully!', 'success');
       await checkConfig();
     } else {
       showNotification(data.error || 'Failed to save settings', 'error');
@@ -198,20 +278,20 @@ async function disconnectSheet() {
   }
 }
 
-// Auto Initialize Sheet Structure
+// Auto Initialize Sheet Structure for all accounts
 async function initializeSheetStructure() {
   if (!sheetConfig || !sheetConfig.spreadsheetId) {
     showNotification('Spreadsheet ID is not configured!', 'warning');
     return;
   }
   
-  showNotification('Initializing Google Sheet structure...', 'info');
+  showNotification('Initializing Google Sheet tabs (Akun 1, 2, 3)...', 'info');
   try {
     const res = await fetch('/api/init-sheet', { method: 'POST' });
     const data = await res.json();
     
     if (res.ok && data.success) {
-      showNotification('Spreadsheet formatted & initialized successfully!', 'success');
+      showNotification('All account sheets formatted & initialized successfully!', 'success');
     } else {
       showNotification(data.error || 'Failed to initialize spreadsheet', 'error');
     }
@@ -220,20 +300,19 @@ async function initializeSheetStructure() {
   }
 }
 
-// Fetch All Trade Data
+// Fetch Trade Data for Active Account
 async function fetchData() {
   if (!sheetConfig || !sheetConfig.spreadsheetId) return;
   
-  showNotification('Loading trade data...', 'info');
+  showNotification(`Loading trades for Akun ${currentAccount}...`, 'info');
   try {
-    const res = await fetch('/api/trades');
+    const res = await fetch(`/api/trades?account=${currentAccount}`);
     const data = await res.json();
     
     if (res.ok) {
       trades = data.trades || [];
-      showNotification('Trade data loaded successfully!', 'success');
+      showNotification(`Trades for Akun ${currentAccount} loaded!`, 'success');
       
-      // Update UI components depending on current page
       populateRecentTradesTable();
       updateStatsAndCharts();
       populateTradesTable();
@@ -242,6 +321,7 @@ async function fetchData() {
       showNotification(data.error || 'Failed to load trades', 'error');
     }
   } catch (err) {
+    console.error('Fetch trades error:', err);
     showNotification('Failed to load data from backend server', 'error');
   }
 }
@@ -250,17 +330,14 @@ async function fetchData() {
 function switchPage(page) {
   currentPage = page;
   
-  // Hide all pages
   dashboardPage.classList.remove('active');
   tradesPage.classList.remove('active');
   settingsPage.classList.remove('active');
   
-  // Remove active nav styles
   navDashboard.classList.remove('active');
   navTrades.classList.remove('active');
   navSettings.classList.remove('active');
   
-  // Close mobile sidebar if active
   const sidebar = document.querySelector('.sidebar');
   const overlay = document.getElementById('sidebar-overlay');
   if (sidebar && overlay) {
@@ -268,16 +345,15 @@ function switchPage(page) {
     overlay.classList.remove('active-mobile');
   }
   
-  // Show page
   if (page === 'dashboard') {
     dashboardPage.classList.add('active');
     navDashboard.classList.add('active');
-    pageTitleText.innerText = 'Dashboard Summary';
+    pageTitleText.innerText = 'Dashboard';
     updateStatsAndCharts();
   } else if (page === 'trades') {
     tradesPage.classList.add('active');
     navTrades.classList.add('active');
-    pageTitleText.innerText = 'Trades Journal Log';
+    pageTitleText.innerText = 'Trades Log';
     populateTradesTable();
     populateSetupFilters();
   } else if (page === 'settings') {
@@ -291,63 +367,25 @@ function switchPage(page) {
 function formatCurrency(val) {
   const isNeg = val < 0;
   const absVal = Math.abs(val);
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(absVal);
-  
-  return isNeg ? `-${formatted}` : formatted;
+  return `${isNeg ? '-' : ''}$${absVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatPercent(val) {
-  return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+  const isNeg = val < 0;
+  const absVal = Math.abs(val);
+  return `${isNeg ? '-' : '+'}${absVal.toFixed(2)}%`;
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '-';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  } catch (e) {
-    return dateStr;
-  }
-}
-
-// Toggle exit price based on status
-function toggleExitField() {
-  const status = document.getElementById('trade-status').value;
-  const exitGroup = document.getElementById('exit-price-group');
-  const exitInput = document.getElementById('trade-exit');
-  
-  if (status === 'Open') {
-    exitGroup.style.opacity = '0.5';
-    exitInput.disabled = true;
-    exitInput.required = false;
-    exitInput.value = '';
-  } else {
-    exitGroup.style.opacity = '1';
-    exitInput.disabled = false;
-    exitInput.required = true;
-  }
-}
-
-// Modals operations
+// Modal Handlers
 function openAddTradeModal() {
-  tradeIdField.value = '';
   tradeForm.reset();
+  tradeIdField.value = '';
   document.getElementById('modal-title').innerText = 'Add New Trade';
+  document.getElementById('btn-save-trade').innerText = 'Save Trade';
   
-  // Set default datetime to now
+  const accountSelect = document.getElementById('trade-account-select');
+  if (accountSelect) accountSelect.value = currentAccount;
+
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   const localISOTime = new Date(now - offset).toISOString().slice(0, 16);
@@ -357,11 +395,60 @@ function openAddTradeModal() {
   tradeModal.classList.add('active');
 }
 
+function closeTradeModal() {
+  tradeModal.classList.remove('active');
+}
+
+function toggleExitField() {
+  const status = document.getElementById('trade-status').value;
+  const exitGroup = document.getElementById('exit-price-group');
+  const exitInput = document.getElementById('trade-exit');
+  
+  if (status === 'Open') {
+    exitGroup.style.opacity = '0.5';
+    exitInput.required = false;
+  } else {
+    exitGroup.style.opacity = '1';
+    exitInput.required = true;
+  }
+}
+
+// Edit Trade Modal Open
+function openEditTradeModal(id) {
+  const trade = trades.find(t => t.id === id);
+  if (!trade) return;
+  
+  document.getElementById('modal-title').innerText = 'Edit Trade';
+  document.getElementById('btn-save-trade').innerText = 'Update Trade';
+  tradeIdField.value = trade.id;
+  
+  const accountSelect = document.getElementById('trade-account-select');
+  if (accountSelect) accountSelect.value = currentAccount;
+
+  if (trade.date) {
+    const d = trade.date.replace(' ', 'T').slice(0, 16);
+    document.getElementById('trade-date').value = d;
+  }
+  
+  document.getElementById('trade-ticker').value = trade.ticker || '';
+  document.getElementById('trade-action').value = trade.action || 'Long';
+  document.getElementById('trade-status').value = trade.status || 'Open';
+  document.getElementById('trade-setup').value = trade.setup || '';
+  document.getElementById('trade-entry').value = trade.entryPrice || '';
+  document.getElementById('trade-exit').value = trade.exitPrice || '';
+  document.getElementById('trade-size').value = trade.size || '';
+  document.getElementById('trade-fees').value = trade.fees || '0.00';
+  document.getElementById('trade-pnl-input').value = trade.pnl !== null && trade.pnl !== undefined ? trade.pnl : '';
+  document.getElementById('trade-notes').value = trade.notes || '';
+  
+  toggleExitField();
+  tradeModal.classList.add('active');
+}
+
 // Filter dashboard by quick timeframe range (Today, Week, Month, All)
 function filterDashboardRange(range) {
   activeDashboardFilter = range;
   
-  // Update button styling active states
   ['today', 'week', 'month', 'all'].forEach(r => {
     const btn = document.getElementById(`db-f-${r}`);
     if (btn) {
@@ -382,7 +469,6 @@ function filterDashboardRange(range) {
 function filterEquityByTimeframe(timeframe) {
   equityTimeframe = timeframe;
   
-  // Update button active states
   ['1D', '1W', '1M', 'all'].forEach(tf => {
     const btn = document.getElementById(`tf-${tf}`);
     if (btn) {
@@ -411,7 +497,7 @@ function populateRecentTradesTable() {
     .slice(0, 5);
     
   if (sorted.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No trades recorded</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No trades recorded for this account</td></tr>';
     return;
   }
   
@@ -448,51 +534,49 @@ function populateRecentTradesTable() {
 // Render Daily Net PnL Bar Chart (Last 7 Days)
 function renderDailyNetPnlChart(closedTrades) {
   const ctx = document.getElementById('dailyNetPnlChart').getContext('2d');
+  const styles = getChartStyles();
   
-  if (charts.dailyNetPnl) {
-    charts.dailyNetPnl.destroy();
-  }
-  
-  // Calculate P&L for each of the last 7 days
   const last7Days = [];
+  const today = new Date();
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
+    const d = new Date(today);
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
     last7Days.push({
       dateStr,
-      label: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+      displayDate: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
       pnl: 0
     });
   }
   
-  closedTrades.forEach(trade => {
-    if (!trade.date) return;
-    const tDateStr = trade.date.split(' ')[0];
-    const dayObj = last7Days.find(d => d.dateStr === tDateStr);
-    if (dayObj) {
-      dayObj.pnl += trade.pnl;
+  closedTrades.forEach(t => {
+    if (t.date) {
+      const tradeDate = t.date.split(' ')[0];
+      const match = last7Days.find(d => d.dateStr === tradeDate);
+      if (match) {
+        match.pnl += t.pnl;
+      }
     }
   });
   
-  const labels = last7Days.map(d => d.label);
+  const labels = last7Days.map(d => d.displayDate);
   const data = last7Days.map(d => Math.round(d.pnl * 100) / 100);
+  const backgroundColors = data.map(v => v >= 0 ? '#10b981' : '#f43f5e');
   
-  const backgroundColors = data.map(v => v > 0 ? 'rgba(16, 185, 129, 0.7)' : (v < 0 ? 'rgba(244, 63, 94, 0.7)' : 'rgba(255,255,255,0.05)'));
-  const borderColors = data.map(v => v > 0 ? '#10b981' : (v < 0 ? '#f43f5e' : 'rgba(255,255,255,0.1)'));
-  
-  const styles = getChartStyles();
+  if (charts.dailyNetPnl) {
+    charts.dailyNetPnl.destroy();
+  }
   
   charts.dailyNetPnl = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
+        label: 'Net P&L',
         data,
         backgroundColor: backgroundColors,
-        borderColor: borderColors,
-        borderWidth: 1.2,
-        borderRadius: 4
+        borderRadius: 4,
+        borderSkipped: false
       }]
     },
     options: {
@@ -505,58 +589,26 @@ function renderDailyNetPnlChart(closedTrades) {
           borderColor: styles.tooltipBorder,
           borderWidth: 1,
           callbacks: {
-            label: function(context) {
-              return `Net P&L: ${formatCurrency(context.parsed.y)}`;
-            }
+            label: (ctx) => `Net P&L: ${ctx.parsed.y >= 0 ? '+' : ''}${formatCurrency(ctx.parsed.y)}`
           }
         }
       },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: styles.textColor, font: { family: 'Inter', size: 9 } }
+          ticks: { color: styles.textColor, font: { family: 'Inter', size: 10 } }
         },
         y: {
           grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor, font: { family: 'Inter', size: 9 } }
+          ticks: {
+            color: styles.textColor,
+            font: { family: 'Inter', size: 10 },
+            callback: (val) => `$${val}`
+          }
         }
       }
     }
   });
-}
-
-function openEditTradeModal(id) {
-  const trade = trades.find(t => t.id === id);
-  if (!trade) return;
-  
-  tradeIdField.value = trade.id;
-  
-  // Format date correctly for datetime-local
-  let formattedDate = '';
-  if (trade.date) {
-    formattedDate = trade.date.replace(' ', 'T').substring(0, 16);
-  }
-  
-  document.getElementById('trade-date').value = formattedDate;
-  document.getElementById('trade-ticker').value = trade.ticker;
-  document.getElementById('trade-action').value = trade.action;
-  document.getElementById('trade-status').value = trade.status;
-  document.getElementById('trade-setup').value = trade.setup;
-  document.getElementById('trade-entry').value = trade.entryPrice;
-  document.getElementById('trade-exit').value = trade.status === 'Open' ? '' : trade.exitPrice;
-  document.getElementById('trade-size').value = trade.size;
-  document.getElementById('trade-fees').value = trade.fees;
-  document.getElementById('trade-pnl-input').value = (trade.pnl !== undefined && trade.pnl !== null) ? trade.pnl : '';
-  document.getElementById('trade-notes').value = trade.notes;
-  
-  document.getElementById('modal-title').innerText = 'Edit Trade';
-  toggleExitField();
-  tradeModal.classList.add('active');
-}
-
-// Close Modal
-function closeTradeModal() {
-  tradeModal.classList.remove('active');
 }
 
 // Save or Update Trade Form Submit
@@ -569,8 +621,11 @@ async function saveTrade(e) {
   const rawDate = document.getElementById('trade-date').value;
   const dateFormatted = rawDate ? rawDate.replace('T', ' ') : '';
   
+  const targetAccount = document.getElementById('trade-account-select') ? document.getElementById('trade-account-select').value : currentAccount;
+  
   const pnlInputVal = document.getElementById('trade-pnl-input').value.trim();
   const tradeData = {
+    account: targetAccount,
     date: dateFormatted,
     ticker: document.getElementById('trade-ticker').value.trim().toUpperCase(),
     action: document.getElementById('trade-action').value,
@@ -600,7 +655,12 @@ async function saveTrade(e) {
     if (res.ok && data.success) {
       showNotification(isEdit ? 'Trade updated successfully!' : 'Trade added successfully!', 'success');
       closeTradeModal();
-      await fetchData();
+      
+      if (targetAccount !== currentAccount) {
+        switchAccount(targetAccount);
+      } else {
+        await fetchData();
+      }
     } else {
       showNotification(data.error || 'Failed to save trade', 'error');
     }
@@ -615,7 +675,7 @@ async function deleteTrade(id) {
   
   showNotification('Deleting trade...', 'info');
   try {
-    const res = await fetch(`/api/trades/${id}`, {
+    const res = await fetch(`/api/trades/${id}?account=${currentAccount}`, {
       method: 'DELETE'
     });
     
@@ -634,6 +694,7 @@ async function deleteTrade(id) {
 // Populate filters dynamically
 function populateSetupFilters() {
   const filterSetup = document.getElementById('filter-setup');
+  if (!filterSetup) return;
   filterSetup.innerHTML = '<option value="ALL">All Strategies</option>';
   
   const setups = [...new Set(trades.map(t => t.setup).filter(Boolean))];
@@ -653,33 +714,39 @@ function applyFilters() {
   const filterSetup = document.getElementById('filter-setup').value;
   
   const filtered = trades.filter(trade => {
-    const matchesSearch = !searchTicker || trade.ticker.includes(searchTicker);
-    const matchesStatus = filterStatus === 'ALL' || trade.status === filterStatus;
-    const matchesAction = filterAction === 'ALL' || trade.action === filterAction;
-    const matchesSetup = filterSetup === 'ALL' || trade.setup === filterSetup;
+    const matchTicker = !searchTicker || (trade.ticker && trade.ticker.includes(searchTicker));
+    const matchStatus = filterStatus === 'ALL' || trade.status === filterStatus;
+    const matchAction = filterAction === 'ALL' || trade.action === filterAction;
+    const matchSetup = filterSetup === 'ALL' || trade.setup === filterSetup;
     
-    return matchesSearch && matchesStatus && matchesAction && matchesSetup;
+    return matchTicker && matchStatus && matchAction && matchSetup;
   });
   
-  renderTableRows(filtered);
+  renderTradesTableRows(filtered);
 }
 
-// Render Table Rows
-function renderTableRows(tradesList) {
+// Populate Trades Log Table
+function populateTradesTable() {
+  renderTradesTableRows(trades);
+}
+
+function renderTradesTableRows(tradeList) {
   const tbody = document.getElementById('trades-tbody');
   const emptyState = document.getElementById('table-empty-state');
   
+  if (!tbody) return;
   tbody.innerHTML = '';
   
-  if (tradesList.length === 0) {
-    emptyState.style.display = 'block';
+  if (tradeList.length === 0) {
+    if (emptyState) emptyState.style.display = 'block';
     return;
   }
   
-  emptyState.style.display = 'none';
-  const sortedTrades = [...tradesList].sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (emptyState) emptyState.style.display = 'none';
   
-  sortedTrades.forEach(trade => {
+  const sorted = [...tradeList].sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  sorted.forEach(trade => {
     const tr = document.createElement('tr');
     
     let statusClass = 'badge-open';
@@ -701,105 +768,110 @@ function renderTableRows(tradesList) {
     }
     
     tr.innerHTML = `
-      <td style="font-family: var(--font-mono); font-size: 0.8rem;">${formatDate(trade.date)}</td>
+      <td style="font-family: var(--font-mono); font-size: 0.8rem;">${trade.date || '-'}</td>
       <td><strong>${trade.ticker}</strong></td>
       <td>${actionBadge}</td>
-      <td style="font-family: var(--font-mono);">${trade.entryPrice.toLocaleString()}</td>
-      <td style="font-family: var(--font-mono);">${trade.status === 'Open' ? '-' : trade.exitPrice.toLocaleString()}</td>
+      <td style="font-family: var(--font-mono);">${formatCurrency(trade.entryPrice)}</td>
+      <td style="font-family: var(--font-mono);">${trade.status === 'Open' ? '-' : formatCurrency(trade.exitPrice)}</td>
       <td style="font-family: var(--font-mono);">${trade.size}</td>
-      <td style="font-family: var(--font-mono);">${trade.fees > 0 ? trade.fees.toLocaleString() : '-'}</td>
+      <td style="font-family: var(--font-mono);">${formatCurrency(trade.fees)}</td>
       <td class="${pnlClass}" style="font-family: var(--font-mono); font-weight: 700;">${formattedPnl}</td>
-      <td class="${pnlClass}" style="font-family: var(--font-mono); font-weight: 700;">${formattedRoi}</td>
-      <td><span style="font-size:0.85rem; background:hsl(222, 18%, 8%); padding:4px 8px; border-radius:4px; border:1px solid var(--surface-border);">${trade.setup}</span></td>
+      <td class="${pnlClass}" style="font-family: var(--font-mono);">${formattedRoi}</td>
+      <td><span class="badge badge-strategy">${trade.setup || 'General'}</span></td>
       <td>${statusBadge}</td>
-      <td>
-        <div class="row-actions">
+      <td style="text-align: right;">
+        <div class="action-buttons">
           <button class="btn-icon" onclick="openEditTradeModal('${trade.id}')" title="Edit Trade">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
-          <button class="btn-icon btn-icon-danger" onclick="deleteTrade('${trade.id}')" title="Delete Trade">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          <button class="btn-icon delete" onclick="deleteTrade('${trade.id}')" title="Delete Trade">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
       </td>
     `;
-    
     tbody.appendChild(tr);
   });
 }
 
-function populateTradesTable() {
-  renderTableRows(trades);
+// Extract Styles from Active Theme CSS Variables
+function getChartStyles() {
+  const root = getComputedStyle(document.documentElement);
+  return {
+    primaryColor: root.getPropertyValue('--primary').trim() || '#14b8a6',
+    primaryGlow: root.getPropertyValue('--primary-glow').trim() || 'rgba(20, 184, 166, 0.12)',
+    successColor: '#10b981',
+    dangerColor: '#f43f5e',
+    warningColor: '#fbbf24',
+    textColor: root.getPropertyValue('--text-muted').trim() || '#94a3b8',
+    gridColor: 'rgba(255, 255, 255, 0.05)',
+    tooltipBg: 'rgba(9, 13, 26, 0.95)',
+    tooltipBorder: 'rgba(255, 255, 255, 0.1)'
+  };
 }
 
 // Calculate Statistics and Render Charts
 function updateStatsAndCharts() {
-  if (currentPage !== 'dashboard') return;
+  const styles = getChartStyles();
   
-  // Filter trades by range selector
-  let activeTrades = [...trades];
+  let filteredTrades = [...trades];
   const now = new Date();
+  
   if (activeDashboardFilter === 'today') {
     const todayStr = now.toISOString().split('T')[0];
-    activeTrades = trades.filter(t => t.date && t.date.startsWith(todayStr));
+    filteredTrades = trades.filter(t => t.date && t.date.startsWith(todayStr));
   } else if (activeDashboardFilter === 'week') {
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(now.getDate() - 7);
-    activeTrades = trades.filter(t => t.date && new Date(t.date) >= oneWeekAgo);
+    const startOfWeek = new Date(now);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    filteredTrades = trades.filter(t => {
+      if (!t.date) return false;
+      const tradeDate = new Date(t.date.replace(' ', 'T'));
+      return tradeDate >= startOfWeek;
+    });
   } else if (activeDashboardFilter === 'month') {
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(now.getMonth() - 1);
-    activeTrades = trades.filter(t => t.date && new Date(t.date) >= oneMonthAgo);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    filteredTrades = trades.filter(t => {
+      if (!t.date) return false;
+      const tradeDate = new Date(t.date.replace(' ', 'T'));
+      return tradeDate >= startOfMonth;
+    });
   }
   
-  const closedTrades = activeTrades.filter(t => t.status !== 'Open');
-  const openTradesCount = activeTrades.filter(t => t.status === 'Open').length;
+  const closedTrades = filteredTrades.filter(t => t.status !== 'Open');
+  const openTrades = filteredTrades.filter(t => t.status === 'Open');
   
-  const totalTrades = activeTrades.length;
-  const closedTradesCount = closedTrades.length;
+  const totalClosed = closedTrades.length;
+  const wonTrades = closedTrades.filter(t => t.status === 'Won');
+  const lostTrades = closedTrades.filter(t => t.status === 'Lost');
+  const breakevenTrades = closedTrades.filter(t => t.status === 'Breakeven');
   
-  // Calculate Stats
-  let netPnl = 0;
-  let totalWins = 0;
-  let totalLosses = 0;
-  let totalBreakeven = 0;
-  let winSum = 0;
-  let lossSum = 0;
-  let roiSum = 0;
+  const totalWins = wonTrades.length;
+  const totalLosses = lostTrades.length;
+  const totalBreakeven = breakevenTrades.length;
   
-  closedTrades.forEach(trade => {
-    netPnl += trade.pnl;
-    roiSum += trade.roi;
-    
-    if (trade.status === 'Won') {
-      totalWins++;
-      winSum += trade.pnl;
-    } else if (trade.status === 'Lost') {
-      totalLosses++;
-      lossSum += Math.abs(trade.pnl);
-    } else if (trade.status === 'Breakeven') {
-      totalBreakeven++;
-      if (trade.pnl > 0) winSum += trade.pnl;
-      else lossSum += Math.abs(trade.pnl);
-    }
-  });
+  const winRate = totalClosed > 0 ? (totalWins / totalClosed) * 100 : 0;
   
-  const winRate = closedTradesCount > 0 ? (totalWins / closedTradesCount) * 100 : 0;
-  const profitFactor = lossSum > 0 ? winSum / lossSum : winSum > 0 ? 99.9 : 0;
+  const netPnl = closedTrades.reduce((sum, t) => sum + t.pnl, 0);
+  const winSum = wonTrades.reduce((sum, t) => sum + t.pnl, 0);
+  const lossSum = Math.abs(lostTrades.reduce((sum, t) => sum + t.pnl, 0));
+  const profitFactor = lossSum > 0 ? winSum / lossSum : (winSum > 0 ? winSum : 0);
   
-  // Get starting capital
-  const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseLocalFloat(sheetConfig.startingCapital) : 10000;
+  const avgTradeRoi = totalClosed > 0 ? closedTrades.reduce((sum, t) => sum + t.roi, 0) / totalClosed : 0;
+  
+  const startingCapital = getActiveAccountCapital();
   
   const avgWin = totalWins > 0 ? winSum / totalWins : 0;
   const avgLoss = totalLosses > 0 ? lossSum / totalLosses : 0;
   
-  // Calculate total balance and total Account ROI based on all history
   const allTimeClosedTrades = trades.filter(t => t.status !== 'Open');
   const allTimeNetPnl = allTimeClosedTrades.reduce((sum, t) => sum + t.pnl, 0);
   const totalBalance = startingCapital + allTimeNetPnl;
   const accountRoi = startingCapital > 0 ? (allTimeNetPnl / startingCapital) * 100 : 0;
   
-  // Update Hero panel
   document.getElementById('hero-total-balance').innerText = formatCurrency(totalBalance);
   
   const heroPnlPill = document.getElementById('hero-pnl-pill');
@@ -810,133 +882,99 @@ function updateStatsAndCharts() {
   } else if (netPnl < 0) {
     heroPnlPill.className = 'hero-pnl-pill negative';
   } else {
-    heroPnlPill.className = 'hero-pnl-pill neutral';
+    heroPnlPill.className = 'hero-pnl-pill';
   }
   
-  const heroAccountRoi = document.getElementById('hero-account-roi');
-  heroAccountRoi.innerText = formatPercent(accountRoi);
-  if (accountRoi > 0) {
-    heroAccountRoi.className = 'hero-meta-value text-profit';
-  } else if (accountRoi < 0) {
-    heroAccountRoi.className = 'hero-meta-value text-loss';
-  } else {
-    heroAccountRoi.className = 'hero-meta-value text-neutral';
-  }
+  const heroRoiEl = document.getElementById('hero-account-roi');
+  heroRoiEl.innerText = formatPercent(accountRoi);
+  heroRoiEl.className = `meta-val ${accountRoi >= 0 ? 'positive' : 'negative'}`;
   
   document.getElementById('hero-win-rate').innerText = `${Math.round(winRate)}%`;
-  document.getElementById('hero-total-trades').innerText = totalTrades;
+  document.getElementById('hero-total-trades').innerText = filteredTrades.length;
   
-  // Update Net Profit/Loss card
   const netPnlEl = document.getElementById('stat-net-pnl');
-  const cardPnl = document.getElementById('card-pnl');
-  const trendIconEl = document.getElementById('pnl-trend-icon');
-  
   netPnlEl.innerText = formatCurrency(netPnl);
+  netPnlEl.className = `stat-value ${netPnl > 0 ? 'text-profit' : (netPnl < 0 ? 'text-loss' : 'text-neutral')}`;
   
-  // Calculate average ROI of individual trades
-  const avgTradeRoi = closedTradesCount > 0 ? roiSum / closedTradesCount : 0;
-  document.getElementById('stat-avg-roi').innerText = `${formatPercent(avgTradeRoi)} Avg. Trade ROI`;
+  const avgRoiEl = document.getElementById('stat-avg-trade-roi');
+  avgRoiEl.innerText = `${formatPercent(avgTradeRoi)} Avg. Trade ROI`;
   
-  if (netPnl > 0) {
-    cardPnl.className = 'stat-card positive';
-    trendIconEl.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-profit"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`;
-  } else if (netPnl < 0) {
-    cardPnl.className = 'stat-card negative';
-    trendIconEl.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-loss"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>`;
-  } else {
-    cardPnl.className = 'stat-card neutral';
-    trendIconEl.innerHTML = '';
-  }
-  
-  // Update Win/Loss card
   document.getElementById('stat-win-loss-ratio-val').innerText = `${totalWins}W - ${totalLosses}L`;
   document.getElementById('stat-win-loss-ratio').innerText = `${totalBreakeven} Breakevens`;
   
-  // Update Profit Factor card
   document.getElementById('stat-profit-factor').innerText = profitFactor.toFixed(2);
-  document.getElementById('stat-avg-win-loss').innerText = `Avg Win: ${formatCurrency(avgWin)} / Loss: ${formatCurrency(-avgLoss)}`;
+  document.getElementById('stat-avg-win-loss').innerText = `Avg Win: $${Math.round(avgWin)} / Loss: $${Math.round(avgLoss)}`;
   
-  // Update Open Trades card
-  document.getElementById('stat-open-trades-val').innerText = openTradesCount;
-  document.getElementById('stat-open-trades-ratio').innerText = `${openTradesCount} Open / ${totalTrades} Total`;
+  document.getElementById('stat-open-trades-val').innerText = openTrades.length;
+  document.getElementById('stat-open-trades-ratio').innerText = `${openTrades.length} Open of ${filteredTrades.length} Total`;
   
-  // Render / Update Charts
   renderEquityChart(closedTrades);
   renderWinLossChart(totalWins, totalLosses, totalBreakeven);
   renderStrategyChart(closedTrades);
   renderDayChart(closedTrades);
   renderDailyNetPnlChart(closedTrades);
-  populateRecentTradesTable();
 }
 
-// ---------------- CHART RENDERING LOGIC ----------------
-
-function getChartStyles() {
-  return {
-    textColor: '#a0aec0',
-    gridColor: 'rgba(255, 255, 255, 0.05)',
-    tooltipBg: '#1e293b',
-    tooltipBorder: '#334155'
-  };
-}
-
+// Chart: Equity Curve
 function renderEquityChart(closedTrades) {
   const ctx = document.getElementById('equityChart').getContext('2d');
+  const styles = getChartStyles();
+  
+  let sorted = [...closedTrades].sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+  const now = new Date();
+  if (equityTimeframe === '1D') {
+    const todayStr = now.toISOString().split('T')[0];
+    sorted = sorted.filter(t => t.date && t.date.startsWith(todayStr));
+  } else if (equityTimeframe === '1W') {
+    const startOfWeek = new Date(now);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    sorted = sorted.filter(t => t.date && new Date(t.date.replace(' ', 'T')) >= startOfWeek);
+  } else if (equityTimeframe === '1M') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    sorted = sorted.filter(t => t.date && new Date(t.date.replace(' ', 'T')) >= startOfMonth);
+  }
+  
+  const startingCapital = getActiveAccountCapital();
+  
+  const labels = ['Start'];
+  const data = [startingCapital];
+  let runningBalance = startingCapital;
+  
+  sorted.forEach((trade, idx) => {
+    runningBalance += trade.pnl;
+    labels.push(`#${idx + 1}`);
+    data.push(Math.round(runningBalance * 100) / 100);
+  });
   
   if (charts.equity) {
     charts.equity.destroy();
   }
   
-  // Filter trades based on equityTimeframe
-  let chartTrades = [...closedTrades];
-  const now = new Date();
-  if (equityTimeframe === '1D') {
-    const todayStr = now.toISOString().split('T')[0];
-    chartTrades = closedTrades.filter(t => t.date && t.date.startsWith(todayStr));
-  } else if (equityTimeframe === '1W') {
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(now.getDate() - 7);
-    chartTrades = closedTrades.filter(t => t.date && new Date(t.date) >= oneWeekAgo);
-  } else if (equityTimeframe === '1M') {
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(now.getMonth() - 1);
-    chartTrades = closedTrades.filter(t => t.date && new Date(t.date) >= oneMonthAgo);
-  }
-  
-  // Sort chronologically ascending
-  const sorted = [...chartTrades].sort((a, b) => new Date(a.date) - new Date(b.date));
-  
-  const startingCapital = sheetConfig && sheetConfig.startingCapital ? parseLocalFloat(sheetConfig.startingCapital) : 10000;
-  
-  let cumulative = startingCapital;
-  const data = [startingCapital];
-  const labels = ['Start'];
-  
-  sorted.forEach((trade, i) => {
-    cumulative += trade.pnl;
-    data.push(Math.round(cumulative * 100) / 100);
-    labels.push(`#${i+1}`);
-  });
-  
-  const styles = getChartStyles();
+  const isUp = runningBalance >= startingCapital;
+  const strokeColor = isUp ? '#14b8a6' : '#f43f5e';
   
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, 'rgba(20, 184, 166, 0.25)');
-  gradient.addColorStop(1, 'rgba(20, 184, 166, 0.0)');
+  gradient.addColorStop(0, isUp ? 'rgba(20, 184, 166, 0.25)' : 'rgba(244, 63, 94, 0.25)');
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
   
   charts.equity = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: 'Balance ($)',
         data,
-        borderColor: '#14b8a6',
+        borderColor: strokeColor,
         borderWidth: 2.5,
-        fill: true,
         backgroundColor: gradient,
-        tension: 0.3,
-        pointBackgroundColor: '#14b8a6',
+        fill: true,
+        tension: 0.35,
+        pointBackgroundColor: strokeColor,
+        pointBorderColor: '#0c0d14',
+        pointBorderWidth: 1.5,
         pointRadius: data.length > 30 ? 0 : 3.5,
         pointHoverRadius: 6
       }]
@@ -986,52 +1024,50 @@ function renderEquityChart(closedTrades) {
         },
         y: {
           grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor, font: { family: 'Inter', size: 10 } }
+          ticks: {
+            color: styles.textColor,
+            font: { family: 'Inter', size: 10 },
+            callback: (val) => `$${val}`
+          }
         }
       }
     }
   });
 }
 
-function renderWinLossChart(wins, losses, breakevens) {
+// Chart: Win / Loss Donut
+function renderWinLossChart(wins, losses, breakeven) {
   const ctx = document.getElementById('winLossChart').getContext('2d');
+  const styles = getChartStyles();
   
   if (charts.winLoss) {
     charts.winLoss.destroy();
   }
   
-  const styles = getChartStyles();
+  const total = wins + losses + breakeven;
+  const winPercent = total > 0 ? Math.round((wins / total) * 100) : 0;
   
   const centerTextPlugin = {
     id: 'centerText',
-    afterDraw: function(chart) {
+    beforeDraw: function(chart) {
       const width = chart.width;
       const height = chart.height;
-      const chartCtx = chart.ctx;
+      const ctx = chart.ctx;
       
-      chartCtx.restore();
+      ctx.restore();
+      ctx.font = '800 1.6rem Inter, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
       
-      const total = wins + losses + breakevens;
-      const rate = total > 0 ? Math.round((wins / total) * 100) : 0;
+      const textX = width / 2;
+      const textY = (height / 2) - 8;
+      ctx.fillText(`${winPercent}%`, textX, textY);
       
-      // Draw subtext
-      chartCtx.font = '600 0.65rem Inter, sans-serif';
-      chartCtx.textBaseline = 'middle';
-      chartCtx.fillStyle = '#94a3b8';
-      const subtext = 'WIN RATE';
-      const subtextX = Math.round((width - chartCtx.measureText(subtext).width) / 2);
-      const subtextY = (height / 2) - 10;
-      chartCtx.fillText(subtext, subtextX, subtextY);
-      
-      // Draw percentage number
-      chartCtx.font = '800 1.5rem Inter, sans-serif';
-      chartCtx.fillStyle = '#ffffff';
-      const text = `${rate}%`;
-      const textX = Math.round((width - chartCtx.measureText(text).width) / 2);
-      const textY = (height / 2) + 12;
-      chartCtx.fillText(text, textX, textY);
-      
-      chartCtx.save();
+      ctx.font = '600 0.7rem Inter, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('WIN RATE', textX, textY + 22);
+      ctx.save();
     }
   };
   
@@ -1040,64 +1076,72 @@ function renderWinLossChart(wins, losses, breakevens) {
     data: {
       labels: ['Won', 'Lost', 'Breakeven'],
       datasets: [{
-        data: [wins, losses, breakevens],
-        backgroundColor: ['#10b981', '#f43f5e', '#fbbf24'],
-        borderColor: 'rgba(0, 0, 0, 0.15)',
-        borderWidth: 1.5
+        data: total > 0 ? [wins, losses, breakeven] : [1, 0, 0],
+        backgroundColor: total > 0 
+          ? ['#10b981', '#f43f5e', '#fbbf24']
+          : ['rgba(255, 255, 255, 0.05)', 'transparent', 'transparent'],
+        borderWidth: 0,
+        hoverOffset: 4
       }]
     },
-    plugins: [centerTextPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '72%',
+      cutout: '76%',
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { color: styles.textColor, font: { family: 'Inter', size: 11, weight: '600' } }
+          labels: {
+            color: styles.textColor,
+            font: { family: 'Inter', size: 11 },
+            usePointStyle: true,
+            padding: 16
+          }
         },
         tooltip: {
           backgroundColor: styles.tooltipBg,
           borderColor: styles.tooltipBorder,
-          borderWidth: 1
+          borderWidth: 1,
+          enabled: total > 0
         }
       }
-    }
+    },
+    plugins: [centerTextPlugin]
   });
 }
 
+// Chart: Strategy Performance
 function renderStrategyChart(closedTrades) {
   const ctx = document.getElementById('strategyChart').getContext('2d');
+  const styles = getChartStyles();
+  
+  const strategyMap = {};
+  closedTrades.forEach(trade => {
+    const setup = trade.setup || 'General';
+    if (!strategyMap[setup]) {
+      strategyMap[setup] = 0;
+    }
+    strategyMap[setup] += trade.pnl;
+  });
+  
+  const labels = Object.keys(strategyMap);
+  const data = Object.values(strategyMap).map(v => Math.round(v * 100) / 100);
+  const backgroundColors = data.map(v => v >= 0 ? '#10b981' : '#f43f5e');
   
   if (charts.strategy) {
     charts.strategy.destroy();
   }
   
-  const stratData = {};
-  closedTrades.forEach(trade => {
-    const setup = trade.setup || 'General';
-    if (!stratData[setup]) stratData[setup] = 0;
-    stratData[setup] += trade.pnl;
-  });
-  
-  const labels = Object.keys(stratData);
-  const data = Object.values(stratData).map(v => Math.round(v * 100) / 100);
-  
-  const backgroundColors = data.map(v => v >= 0 ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)');
-  const borderColors = data.map(v => v >= 0 ? '#2ecc71' : '#e74c3c');
-  
-  const styles = getChartStyles();
-  
   charts.strategy = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels,
+      labels: labels.length > 0 ? labels : ['No Setups'],
       datasets: [{
-        data,
-        backgroundColor: backgroundColors,
-        borderColor: borderColors,
-        borderWidth: 1.5,
-        borderRadius: 4
+        label: 'Net P&L ($)',
+        data: data.length > 0 ? data : [0],
+        backgroundColor: backgroundColors.length > 0 ? backgroundColors : ['rgba(255, 255, 255, 0.1)'],
+        borderRadius: 4,
+        borderSkipped: false
       }]
     },
     options: {
@@ -1110,60 +1154,64 @@ function renderStrategyChart(closedTrades) {
           borderColor: styles.tooltipBorder,
           borderWidth: 1,
           callbacks: {
-            label: function(context) {
-              return `Net P&L: ${formatCurrency(context.parsed.y)}`;
-            }
+            label: (ctx) => `Net P&L: ${ctx.parsed.y >= 0 ? '+' : ''}${formatCurrency(ctx.parsed.y)}`
           }
         }
       },
       scales: {
         x: {
-          grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor }
+          grid: { display: false },
+          ticks: { color: styles.textColor, font: { family: 'Inter', size: 10 } }
         },
         y: {
           grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor }
+          ticks: {
+            color: styles.textColor,
+            font: { family: 'Inter', size: 10 },
+            callback: (val) => `$${val}`
+          }
         }
       }
     }
   });
 }
 
+// Chart: Day of Week Performance
 function renderDayChart(closedTrades) {
   const ctx = document.getElementById('dayChart').getContext('2d');
+  const styles = getChartStyles();
+  
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayPnl = [0, 0, 0, 0, 0, 0, 0];
+  
+  closedTrades.forEach(trade => {
+    if (trade.date) {
+      const d = new Date(trade.date.replace(' ', 'T'));
+      if (!isNaN(d.getDay())) {
+        dayPnl[d.getDay()] += trade.pnl;
+      }
+    }
+  });
+  
+  const tradingDays = [1, 2, 3, 4, 5];
+  const labels = tradingDays.map(i => days[i]);
+  const data = tradingDays.map(i => Math.round(dayPnl[i] * 100) / 100);
+  const backgroundColors = data.map(v => v >= 0 ? '#10b981' : '#f43f5e');
   
   if (charts.day) {
     charts.day.destroy();
   }
   
-  const dayPnl = [0, 0, 0, 0, 0, 0, 0];
-  
-  closedTrades.forEach(trade => {
-    if (!trade.date) return;
-    const date = new Date(trade.date);
-    const dayIndex = date.getDay(); // 0-6
-    dayPnl[dayIndex] += trade.pnl;
-  });
-  
-  const orderedLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const orderedData = [dayPnl[1], dayPnl[2], dayPnl[3], dayPnl[4], dayPnl[5], dayPnl[6], dayPnl[0]].map(v => Math.round(v * 100) / 100);
-  
-  const backgroundColors = orderedData.map(v => v >= 0 ? 'rgba(26, 188, 156, 0.7)' : 'rgba(231, 76, 60, 0.7)');
-  const borderColors = orderedData.map(v => v >= 0 ? '#1abc9c' : '#e74c3c');
-  
-  const styles = getChartStyles();
-  
   charts.day = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: orderedLabels,
+      labels,
       datasets: [{
-        data: orderedData,
+        label: 'Net P&L ($)',
+        data,
         backgroundColor: backgroundColors,
-        borderColor: borderColors,
-        borderWidth: 1.5,
-        borderRadius: 4
+        borderRadius: 4,
+        borderSkipped: false
       }]
     },
     options: {
@@ -1176,52 +1224,54 @@ function renderDayChart(closedTrades) {
           borderColor: styles.tooltipBorder,
           borderWidth: 1,
           callbacks: {
-            label: function(context) {
-              return `Net P&L: ${formatCurrency(context.parsed.y)}`;
-            }
+            label: (ctx) => `Net P&L: ${ctx.parsed.y >= 0 ? '+' : ''}${formatCurrency(ctx.parsed.y)}`
           }
         }
       },
       scales: {
         x: {
-          grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor }
+          grid: { display: false },
+          ticks: { color: styles.textColor, font: { family: 'Inter', size: 10 } }
         },
         y: {
           grid: { color: styles.gridColor },
-          ticks: { color: styles.textColor }
+          ticks: {
+            color: styles.textColor,
+            font: { family: 'Inter', size: 10 },
+            callback: (val) => `$${val}`
+          }
         }
       }
     }
   });
 }
 
-// Adjust starting capital (Add/Deposit or Min/Withdraw)
+// Adjust Starting Capital dynamically for Active Account
 async function adjustStartingCapital(action) {
   if (!sheetConfig || !sheetConfig.spreadsheetId) {
-    showNotification('Config not loaded yet', 'error');
+    showNotification('Silakan hubungkan Google Spreadsheet ID terlebih dahulu.', 'warning');
     return;
   }
   
-  const actionText = action === 'add' ? 'TAMBAH (Deposit)' : 'KURANGI (Withdraw)';
-  const promptMessage = `Masukkan nominal yang ingin Anda ${actionText} ke saldo awal (Starting Capital):`;
-  
-  const input = prompt(promptMessage);
-  if (input === null) return; // user cancelled
+  const currentCapital = getActiveAccountCapital();
+  const promptText = action === 'add' 
+    ? `Masukkan nominal yang ingin DITAMBAHKAN ke Saldo Awal Akun ${currentAccount}:` 
+    : `Masukkan nominal yang ingin DIKURANGI dari Saldo Awal Akun ${currentAccount}:`;
+    
+  const input = prompt(promptText, '0');
+  if (input === null) return;
   
   const amount = parseLocalFloat(input);
   if (isNaN(amount) || amount <= 0) {
-    alert('Nominal harus berupa angka positif!');
+    showNotification('Nominal harus berupa angka lebih dari 0.', 'warning');
     return;
   }
   
-  const currentCapital = parseLocalFloat(sheetConfig.startingCapital) || 0;
   let newCapital = currentCapital;
-  
   if (action === 'add') {
     newCapital += amount;
   } else {
-    if (currentCapital < amount) {
+    if (amount > currentCapital) {
       if (!confirm(`Peringatan: Nominal pengurangan ($${amount}) lebih besar dari Saldo Awal saat ini ($${currentCapital}). Lanjutkan?`)) {
         return;
       }
@@ -1229,23 +1279,25 @@ async function adjustStartingCapital(action) {
     newCapital -= amount;
   }
   
-  showNotification('Memproses penyesuaian saldo...', 'info');
+  showNotification(`Memproses penyesuaian saldo Akun ${currentAccount}...`, 'info');
   
   try {
+    const accSheet = sheetConfig && sheetConfig.accounts && sheetConfig.accounts[currentAccount] ? sheetConfig.accounts[currentAccount].sheetName : (currentAccount === '1' ? 'Trades' : `Akun ${currentAccount}`);
+    
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         spreadsheetId: sheetConfig.spreadsheetId, 
-        sheetName: sheetConfig.sheetName || 'Trades', 
+        accountId: currentAccount,
+        sheetName: accSheet, 
         startingCapital: newCapital 
       })
     });
     
     const data = await res.json();
     if (res.ok && data.success) {
-      showNotification(`Saldo awal berhasil di-${action === 'add' ? 'tambah' : 'kurangi'}!`, 'success');
-      // Reload config & data to refresh UI
+      showNotification(`Saldo awal Akun ${currentAccount} berhasil di-${action === 'add' ? 'tambah' : 'kurangi'}!`, 'success');
       await checkConfig();
     } else {
       showNotification(data.error || 'Gagal menyesuaikan saldo', 'error');
