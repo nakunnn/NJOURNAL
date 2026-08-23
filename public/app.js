@@ -260,6 +260,14 @@ function switchPage(page) {
   navTrades.classList.remove('active');
   navSettings.classList.remove('active');
   
+  // Close mobile sidebar if active
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && overlay) {
+    sidebar.classList.remove('active-mobile');
+    overlay.classList.remove('active-mobile');
+  }
+  
   // Show page
   if (page === 'dashboard') {
     dashboardPage.classList.add('active');
@@ -1239,5 +1247,15 @@ async function adjustStartingCapital(action) {
     }
   } catch (err) {
     showNotification('Gagal terhubung ke server', 'error');
+  }
+}
+
+// Toggle mobile sidebar drawer
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && overlay) {
+    sidebar.classList.toggle('active-mobile');
+    overlay.classList.toggle('active-mobile');
   }
 }

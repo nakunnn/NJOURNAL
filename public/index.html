@@ -7,8 +7,96 @@
   <link rel="stylesheet" id="theme-stylesheet" href="index.css">
   <!-- Chart.js for data visualization -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Global Mobile Overrides */
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column !important;
+      }
+      .sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        height: 100vh !important;
+        width: 280px !important;
+        z-index: 1000 !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6) !important;
+        border-right: 1px solid var(--surface-border) !important;
+        border-bottom: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .sidebar.active-mobile {
+        transform: translateX(0) !important;
+      }
+      .nav-links {
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+      }
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 999;
+      }
+      .sidebar-overlay.active-mobile {
+        display: block;
+      }
+      .mobile-toggle {
+        display: inline-flex !important;
+      }
+      .main-panel {
+        margin-left: 0 !important;
+        padding-top: 70px !important; /* avoid overlapping header */
+        height: auto !important;
+        min-height: 100vh;
+      }
+      .header {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 900 !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border-bottom: 1px solid var(--surface-border) !important;
+      }
+      .dashboard-hero {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        padding: 20px !important;
+      }
+      .hero-meta-grid {
+        width: 100% !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+      }
+      .small-charts-grid, .charts-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+      }
+      /* Clean table wrap for horizontal scroll */
+      .table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+      .trades-table {
+        min-width: 600px !important;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
   <div class="app-container">
     
     <!-- Sidebar Navigation -->
@@ -64,8 +152,12 @@
       
       <!-- Sticky Header -->
       <header class="header">
-        <div class="header-title">
-          <h1 id="page-title">Dashboard</h1>
+        <div class="header-title" style="display: flex; align-items: center; gap: 12px;">
+          <!-- Mobile Hamburger Toggle -->
+          <button class="mobile-toggle" onclick="toggleSidebar()" style="display: none; background: transparent; border: none; color: var(--text-primary); cursor: pointer; align-items: center; justify-content: center; padding: 4px; border-radius: 4px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+          </button>
+          <h1 id="page-title" style="margin: 0;">Dashboard</h1>
         </div>
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="fetchData()">
