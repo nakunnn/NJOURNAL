@@ -70,10 +70,21 @@
         -webkit-backdrop-filter: blur(16px) !important;
         border-bottom: 1px solid var(--surface-border) !important;
       }
+      
+      /* Dashboard tweaks */
       .dashboard-hero {
         flex-direction: column !important;
         align-items: flex-start !important;
         padding: 20px !important;
+        gap: 16px !important;
+      }
+      .hero-balance-wrapper {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+      }
+      .hero-balance {
+        font-size: 2rem !important;
       }
       .hero-meta-grid {
         width: 100% !important;
@@ -84,13 +95,68 @@
         grid-template-columns: 1fr !important;
         gap: 16px !important;
       }
-      /* Clean table wrap for horizontal scroll */
+      
+      /* Table scroll and responsiveness */
       .table-container {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
+        width: 100% !important;
       }
       .trades-table {
-        min-width: 600px !important;
+        min-width: 750px !important;
+      }
+      
+      /* Trades Log Filter Bar tweaks to prevent collision */
+      .filter-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        padding: 16px !important;
+      }
+      .filters {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        gap: 8px !important;
+      }
+      .filter-select, .search-wrapper {
+        width: 100% !important;
+      }
+      .filter-bar .actions {
+        width: 100% !important;
+        margin-top: 4px;
+      }
+      .filter-bar .actions .btn {
+        width: 100% !important;
+      }
+      
+      /* Modal fixes to prevent overflow */
+      .modal-overlay {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      .modal {
+        width: 92% !important;
+        max-width: 580px !important;
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        margin: 20px auto !important;
+        border-radius: 12px !important;
+      }
+      .form-grid-2, .form-grid-3 {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+    }
+    
+    /* Button Text responsive collapse (turn into icon button on narrow screens) */
+    @media (max-width: 600px) {
+      .btn-text {
+        display: none !important;
+      }
+      .btn {
+        padding: 8px 10px !important;
       }
     }
   </style>
@@ -162,11 +228,11 @@
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="fetchData()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            Refresh
+            <span class="btn-text">Refresh</span>
           </button>
           <button class="btn btn-primary" id="btn-add-trade-header" onclick="openAddTradeModal()" style="display: none;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Add Trade
+            <span class="btn-text">Add Trade</span>
           </button>
         </div>
       </header>
