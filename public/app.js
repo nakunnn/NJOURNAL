@@ -128,10 +128,16 @@ async function switchAccount(accId) {
   await fetchData();
 }
 
-// Show Notification toast
+// Show Notification toast (Max 3 notifications visible)
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
   if (!container) return;
+
+  // Cap maximum notifications to 3 (remove oldest ones if 3 or more exist)
+  while (container.children.length >= 3) {
+    container.removeChild(container.firstElementChild);
+  }
+
   const notification = document.createElement('div');
   notification.className = `notification ${type}`;
   
@@ -158,9 +164,11 @@ function showNotification(message, type = 'info') {
   setTimeout(() => {
     notification.classList.remove('show');
     setTimeout(() => {
-      notification.remove();
+      if (notification.parentElement) {
+        notification.remove();
+      }
     }, 300);
-  }, 4000);
+  }, 3000);
 }
 
 function copySettingsServiceEmail() {

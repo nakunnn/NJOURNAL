@@ -1,6 +1,6 @@
 {
   "spreadsheetId": "1R6xjfPHdxouVoVMra_NRwYPw3cSE2ME74j64feYsloY",
-  "currentAccount": "1",
+  "currentAccount": "2",
   "accounts": {
     "1": {
       "name": "Akun 1",
@@ -10,7 +10,7 @@
     "2": {
       "name": "Akun 2",
       "sheetName": "Akun 2",
-      "startingCapital": 10000
+      "startingCapital": 50
     },
     "3": {
       "name": "Akun 3",
