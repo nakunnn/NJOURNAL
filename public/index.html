@@ -136,14 +136,28 @@
       }
       
       /* Table scroll and responsiveness */
+      .chart-card {
+        min-width: 0 !important;
+      }
       .table-container {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
         width: 100% !important;
         max-width: 100% !important;
+        min-width: 0 !important;
       }
       .trades-table {
         min-width: 750px !important;
+      }
+      
+      /* Specific fixes for Recent Trades table to fit without scrolling */
+      #recent-trades-table {
+        min-width: auto !important;
+        width: 100% !important;
+      }
+      #recent-trades-table th, #recent-trades-table td {
+        padding: 8px 6px !important;
+        font-size: 0.7rem !important;
       }
       
       /* Trades Log Filter Bar tweaks to prevent collision */
