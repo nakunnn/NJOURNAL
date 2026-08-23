@@ -135,29 +135,61 @@
         gap: 16px !important;
       }
       
-      /* Table scroll and responsiveness */
+      /* Table sliding (Left-Right & Up-Down) */
       .chart-card {
         min-width: 0 !important;
       }
       .table-container {
         overflow-x: auto !important;
+        overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
+        position: relative !important;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.25) rgba(0, 0, 0, 0.2);
       }
-      .trades-table {
-        min-width: 750px !important;
+      .table-container thead th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 5 !important;
+        background: #0f172a !important;
       }
-      
-      /* Specific fixes for Recent Trades table to fit without scrolling */
+      .table-container::-webkit-scrollbar {
+        width: 6px !important;
+        height: 6px !important;
+      }
+      .table-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2) !important;
+        border-radius: 4px !important;
+      }
+      .table-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.25) !important;
+        border-radius: 4px !important;
+      }
+      .table-container::-webkit-scrollbar-thumb:hover {
+        background: var(--primary) !important;
+      }
+
+      /* Trade Log table slider min-width */
+      #trades-table {
+        min-width: 900px !important;
+        width: 100%;
+      }
+      #trades-table th, #trades-table td {
+        white-space: nowrap !important;
+      }
+
+      /* Recent Trades table slider min-width */
       #recent-trades-table {
-        min-width: auto !important;
-        width: 100% !important;
+        min-width: 580px !important;
+        width: 100%;
       }
       #recent-trades-table th, #recent-trades-table td {
-        padding: 8px 6px !important;
-        font-size: 0.7rem !important;
+        white-space: nowrap !important;
+        padding: 10px 14px !important;
+        font-size: 0.78rem !important;
       }
       
       /* Trades Log Filter Bar tweaks to prevent collision */
@@ -202,6 +234,38 @@
         grid-template-columns: 1fr !important;
         gap: 12px !important;
       }
+    }
+
+    /* Global Table Slider Styling (Applies to desktop & mobile) */
+    .table-container {
+      overflow-x: auto;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.15);
+    }
+    .table-container thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background-color: var(--surface-color);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .table-container::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .table-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+    }
+    .table-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+    .table-container::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
     }
     
     /* Button Text responsive collapse (turn into icon button on narrow screens) */
@@ -454,7 +518,7 @@
               </div>
               <button class="btn btn-secondary" onclick="switchPage('trades')" style="padding: 4px 12px; font-size: 0.75rem; border-radius: var(--border-radius-sm); border: 1px solid var(--surface-border);">View All</button>
             </div>
-            <div class="table-container" style="box-shadow: none; border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-md); overflow: hidden; background: rgba(0,0,0,0.15);">
+            <div class="table-container" style="box-shadow: none; border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-md); background: rgba(0,0,0,0.15); max-height: 280px;">
               <table class="trades-table" id="recent-trades-table">
                 <thead>
                   <tr>
@@ -526,7 +590,7 @@
         </div>
 
         <!-- Table Container -->
-        <div class="table-container">
+        <div class="table-container" style="max-height: 650px;">
           <table class="trades-table" id="trades-table">
             <thead>
               <tr>
