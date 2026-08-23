@@ -977,7 +977,12 @@ function renderEquityChart(closedTrades) {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: styles.textColor, font: { family: 'Inter', size: 10 } }
+          ticks: {
+            color: styles.textColor,
+            font: { family: 'Inter', size: 10 },
+            maxRotation: 0,
+            minRotation: 0
+          }
         },
         y: {
           grid: { color: styles.gridColor },

@@ -75,10 +75,46 @@
       }
       
       /* Dashboard tweaks */
+      .dashboard-filter-bar h2 {
+        display: none !important;
+      }
+      .dashboard-filter-bar {
+        justify-content: center !important;
+        width: 100% !important;
+        margin-bottom: 12px !important;
+      }
+      .dashboard-filter-bar .btn-group {
+        width: 100% !important;
+        display: flex !important;
+      }
+      .dashboard-filter-bar .btn-group button {
+        flex: 1 !important;
+        padding: 6px 4px !important;
+        font-size: 0.68rem !important;
+        text-align: center !important;
+        border-radius: var(--border-radius-sm) !important;
+      }
+      .chart-card {
+        padding: 16px !important;
+      }
+      .chart-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+      }
+      .timeframe-selector {
+        width: 100% !important;
+        display: flex !important;
+      }
+      .timeframe-selector button {
+        flex: 1 !important;
+        padding: 6px 0 !important;
+        text-align: center !important;
+      }
       .dashboard-hero {
         flex-direction: column !important;
         align-items: flex-start !important;
-        padding: 20px !important;
+        padding: 16px !important;
         gap: 16px !important;
       }
       .hero-balance-wrapper {
@@ -104,6 +140,7 @@
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
         width: 100% !important;
+        max-width: 100% !important;
       }
       .trades-table {
         min-width: 750px !important;
